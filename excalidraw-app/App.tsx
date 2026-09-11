@@ -189,7 +189,10 @@ window.addEventListener(
 
 let isSelfEmbedding = false;
 
-if (window.self !== window.top) {
+// The development app is intentionally rendered in same-origin preview frames
+// by hosts such as Replit. Keep the production recursion guard, but do not
+// mistake the development preview shell for Excalidraw embedding itself.
+if (!import.meta.env.DEV && window.self !== window.top) {
   try {
     const parentUrl = new URL(document.referrer);
     const currentUrl = new URL(window.location.href);
