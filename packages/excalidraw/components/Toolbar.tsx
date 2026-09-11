@@ -219,6 +219,59 @@ const ExtraToolsDropdown = ({
   );
 };
 
+const ContextualToolStrip = ({
+  app,
+  activeTool,
+  isCompact,
+}: {
+  app: AppClassProperties;
+  activeTool: UIAppState["activeTool"];
+  isCompact: boolean;
+}) => {
+  const toolProps = { app, activeTool };
+  const isLinearTool =
+    activeTool.type === "arrow" || activeTool.type === "line";
+  const isDrawingTool =
+    activeTool.type === "freedraw" || activeTool.type === "autoshape";
+
+  return (
+    <div
+      className="App-toolbar__context"
+      role="toolbar"
+      aria-label={
+        isLinearTool
+          ? "Connector tools"
+          : isDrawingTool
+          ? "Drawing tools"
+          : "Shape tools"
+      }
+    >
+      <span className="App-toolbar__context-label" aria-hidden="true">
+        {isLinearTool ? "Connect" : isDrawingTool ? "Draw" : "Shape"}
+      </span>
+      <div className="App-toolbar__context-divider" />
+      {isLinearTool ? (
+        <>
+          <ArrowToolButton {...toolProps} />
+          <LineToolButton {...toolProps} />
+        </>
+      ) : isDrawingTool ? (
+        isCompact ? (
+          <FreedrawToolPopover {...toolProps} />
+        ) : (
+          <FreedrawToolButton {...toolProps} />
+        )
+      ) : (
+        <>
+          <RectangleToolButton {...toolProps} />
+          <DiamondToolButton {...toolProps} />
+          <EllipseToolButton {...toolProps} />
+        </>
+      )}
+    </div>
+  );
+};
+
 /** the main (desktop/tablet) toolbar island */
 export const Toolbar = ({
   app,
@@ -259,7 +312,15 @@ export const Toolbar = ({
         app={app}
       />
       {heading}
-      <Stack.Row gap={isCompactStylesPanel ? 0.5 : 1}>
+      <ContextualToolStrip
+        app={app}
+        activeTool={activeTool}
+        isCompact={isCompactStylesPanel}
+      />
+      <Stack.Row
+        gap={isCompactStylesPanel ? 0.5 : 1}
+        className="App-toolbar__primary"
+      >
         {/* in compact UI the pen mode button is rendered as a separate
             floating button below the compact actions menu */}
         {!isCompactStylesPanel && (
@@ -295,11 +356,9 @@ export const Toolbar = ({
         ) : (
           <SelectionToolButton {...toolProps} />
         )}
+        <div className="App-toolbar__divider" />
         <RectangleToolButton {...toolProps} />
-        <DiamondToolButton {...toolProps} />
-        <EllipseToolButton {...toolProps} />
         <ArrowToolButton {...toolProps} />
-        <LineToolButton {...toolProps} />
         {isCompactStylesPanel ? (
           <FreedrawToolPopover {...toolProps} />
         ) : (
@@ -307,12 +366,8 @@ export const Toolbar = ({
         )}
         <TextToolButton {...toolProps} />
         <StickyNoteToolButton {...toolProps} />
+        <div className="App-toolbar__divider" />
         <EraserToolButton {...toolProps} />
-
-        <div
-          className="App-toolbar__divider"
-          style={{ marginLeft: "0.25rem" }}
-        />
 
         <ExtraToolsDropdown
           app={app}
