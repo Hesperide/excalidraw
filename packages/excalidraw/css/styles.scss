@@ -435,7 +435,11 @@ body.excalidraw-cursor-resize * {
   }
 
   .App-menu_top > .shapes-section {
-    grid-column: 2;
+    position: fixed;
+    top: 5rem;
+    left: 1rem;
+    grid-column: 1;
+    justify-content: flex-start;
   }
 
   .selected-shape-actions-container {

@@ -219,58 +219,23 @@ const ExtraToolsDropdown = ({
   );
 };
 
-const ContextualToolStrip = ({
-  app,
-  activeTool,
-  isCompact,
+const VisualTool = ({
+  label,
+  preview,
+  children,
 }: {
-  app: AppClassProperties;
-  activeTool: UIAppState["activeTool"];
-  isCompact: boolean;
-}) => {
-  const toolProps = { app, activeTool };
-  const isLinearTool =
-    activeTool.type === "arrow" || activeTool.type === "line";
-  const isDrawingTool =
-    activeTool.type === "freedraw" || activeTool.type === "autoshape";
-
-  return (
-    <div
-      className="App-toolbar__context"
-      role="toolbar"
-      aria-label={
-        isLinearTool
-          ? "Connector tools"
-          : isDrawingTool
-          ? "Drawing tools"
-          : "Shape tools"
-      }
-    >
-      <span className="App-toolbar__context-label" aria-hidden="true">
-        {isLinearTool ? "Connect" : isDrawingTool ? "Draw" : "Shape"}
-      </span>
-      <div className="App-toolbar__context-divider" />
-      {isLinearTool ? (
-        <>
-          <ArrowToolButton {...toolProps} />
-          <LineToolButton {...toolProps} />
-        </>
-      ) : isDrawingTool ? (
-        isCompact ? (
-          <FreedrawToolPopover {...toolProps} />
-        ) : (
-          <FreedrawToolButton {...toolProps} />
-        )
-      ) : (
-        <>
-          <RectangleToolButton {...toolProps} />
-          <DiamondToolButton {...toolProps} />
-          <EllipseToolButton {...toolProps} />
-        </>
-      )}
+  label: string;
+  preview: "box" | "diamond" | "ellipse" | "arrow" | "line" | "ink" | "text";
+  children: React.ReactNode;
+}) => (
+  <div className="App-toolbar__visual-tool">
+    <div className={`App-toolbar__preview App-toolbar__preview--${preview}`}>
+      <span />
     </div>
-  );
-};
+    <span className="App-toolbar__visual-tool-label">{label}</span>
+    {children}
+  </div>
+);
 
 /** the main (desktop/tablet) toolbar island */
 export const Toolbar = ({
@@ -295,6 +260,7 @@ export const Toolbar = ({
 
   const activeTool = appState.activeTool;
   const toolProps = { app, activeTool };
+  const [isExpanded, setIsExpanded] = useState(true);
 
   return (
     <Island
@@ -302,6 +268,7 @@ export const Toolbar = ({
       className={clsx("App-toolbar", {
         "zen-mode": appState.zenModeEnabled,
         "App-toolbar--compact": isCompactStylesPanel,
+        "App-toolbar--collapsed": !isExpanded,
       })}
       data-viewport-ui="top"
     >
@@ -312,15 +279,63 @@ export const Toolbar = ({
         app={app}
       />
       {heading}
-      <ContextualToolStrip
-        app={app}
-        activeTool={activeTool}
-        isCompact={isCompactStylesPanel}
-      />
-      <Stack.Row
-        gap={isCompactStylesPanel ? 0.5 : 1}
-        className="App-toolbar__primary"
-      >
+      <div className="App-toolbar__header">
+        <div>
+          <strong>Toolbox</strong>
+          {isExpanded && <span>Draw with intent</span>}
+        </div>
+        <button
+          type="button"
+          className="App-toolbar__collapse"
+          aria-expanded={isExpanded}
+          aria-label={isExpanded ? "Collapse toolbox" : "Expand toolbox"}
+          onClick={() => setIsExpanded((expanded) => !expanded)}
+        >
+          {isExpanded ? "‹" : "›"}
+        </button>
+      </div>
+      {isExpanded && (
+        <div className="App-toolbar__groups" role="toolbar" aria-label="Tools">
+          <section>
+            <h3>Shapes</h3>
+            <VisualTool label="Rectangle" preview="box">
+              <RectangleToolButton {...toolProps} hideKeyBinding />
+            </VisualTool>
+            <VisualTool label="Diamond" preview="diamond">
+              <DiamondToolButton {...toolProps} hideKeyBinding />
+            </VisualTool>
+            <VisualTool label="Ellipse" preview="ellipse">
+              <EllipseToolButton {...toolProps} hideKeyBinding />
+            </VisualTool>
+          </section>
+          <section>
+            <h3>Connectors</h3>
+            <VisualTool label="Arrow" preview="arrow">
+              <ArrowToolButton {...toolProps} hideKeyBinding />
+            </VisualTool>
+            <VisualTool label="Line" preview="line">
+              <LineToolButton {...toolProps} hideKeyBinding />
+            </VisualTool>
+          </section>
+          <section>
+            <h3>Annotations</h3>
+            <VisualTool label="Free draw" preview="ink">
+              {isCompactStylesPanel ? (
+                <FreedrawToolPopover {...toolProps} />
+              ) : (
+                <FreedrawToolButton {...toolProps} hideKeyBinding />
+              )}
+            </VisualTool>
+            <VisualTool label="Text" preview="text">
+              <TextToolButton {...toolProps} hideKeyBinding />
+            </VisualTool>
+            <VisualTool label="Note" preview="box">
+              <StickyNoteToolButton {...toolProps} hideKeyBinding />
+            </VisualTool>
+          </section>
+        </div>
+      )}
+      <Stack.Row gap={0.5} className="App-toolbar__utilities">
         {/* in compact UI the pen mode button is rendered as a separate
             floating button below the compact actions menu */}
         {!isCompactStylesPanel && (
@@ -356,17 +371,6 @@ export const Toolbar = ({
         ) : (
           <SelectionToolButton {...toolProps} />
         )}
-        <div className="App-toolbar__divider" />
-        <RectangleToolButton {...toolProps} />
-        <ArrowToolButton {...toolProps} />
-        {isCompactStylesPanel ? (
-          <FreedrawToolPopover {...toolProps} />
-        ) : (
-          <FreedrawToolButton {...toolProps} />
-        )}
-        <TextToolButton {...toolProps} />
-        <StickyNoteToolButton {...toolProps} />
-        <div className="App-toolbar__divider" />
         <EraserToolButton {...toolProps} />
 
         <ExtraToolsDropdown
