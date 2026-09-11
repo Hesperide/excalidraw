@@ -9,7 +9,6 @@ import { t } from "../i18n";
 import { useEditorInterface, useStylesPanelMode } from "./App";
 import { HintViewer } from "./HintViewer";
 import { Island } from "./Island";
-import { LockButton } from "./LockButton";
 import { PenModeButton } from "./PenModeButton";
 import Stack from "./Stack";
 import DropdownMenu from "./dropdownMenu/DropdownMenu";
@@ -228,7 +227,14 @@ const VisualTool = ({
   preview: "box" | "diamond" | "ellipse" | "arrow" | "line" | "ink" | "text";
   children: React.ReactNode;
 }) => (
-  <div className="App-toolbar__visual-tool">
+  <div
+    className="App-toolbar__visual-tool"
+    onClick={(event) => {
+      if (!(event.target as HTMLElement).closest("button")) {
+        event.currentTarget.querySelector("button")?.click();
+      }
+    }}
+  >
     <div className={`App-toolbar__preview App-toolbar__preview--${preview}`}>
       <span />
     </div>
@@ -348,13 +354,18 @@ export const Toolbar = ({
         )}
         {app.props.activeTool == null && (
           <>
-            <LockButton
-              checked={appState.activeTool.locked}
-              onChange={onLockToggle}
-              title={t("toolBar.lock")}
-              // the active tool — including its lock state — is host-controlled
-              disabled={app.props.activeTool != null}
-            />
+            <button
+              type="button"
+              className={clsx("App-toolbar__utility-button", {
+                "App-toolbar__utility-button--active":
+                  appState.activeTool.locked,
+              })}
+              onClick={onLockToggle}
+              aria-pressed={appState.activeTool.locked}
+              title={`${t("toolBar.lock")} — Q`}
+            >
+              Keep active
+            </button>
 
             <div
               className="App-toolbar__divider"
