@@ -1,6 +1,16 @@
-import { isArrowKey, KEYS } from "@excalidraw/common";
+import {
+  isArrowKey,
+  KEYS,
+  viewportCoordsToSceneCoords,
+} from "@excalidraw/common";
+import { pointFrom, type GlobalPoint } from "@excalidraw/math";
 
 import {
+  bindBindingElement,
+  getFlowchartHandleAtPoint,
+  getFlowchartHandlePoints,
+  isArrowElement,
+  isDragFlowchartNodeElement,
   makeNextSelectedElementIds,
   CaptureUpdateAction,
   FlowChartCreator,
@@ -33,6 +43,8 @@ type FlowchartOperation =
 export class AppFlowchart {
   private creator = new FlowChartCreator();
   private navigator = new FlowChartNavigator();
+  private dragPointerId: number | null = null;
+  private removeDragListeners: (() => void) | null = null;
 
   constructor(private app: App) {}
 
@@ -46,8 +58,153 @@ export class AppFlowchart {
 
   /** ends any in-progress flowchart creation/navigation session */
   clear = () => {
+    this.removeDragListeners?.();
+    this.removeDragListeners = null;
+    this.dragPointerId = null;
     this.creator.clear();
     this.navigator.clear();
+  };
+
+  isDragging = () => this.creator.isDragging;
+
+  getDirectionalHandlePoints = (element: NonDeletedExcalidrawElement) =>
+    isDragFlowchartNodeElement(element)
+      ? getFlowchartHandlePoints(
+          element,
+          this.app.scene.getNonDeletedElementsMap(),
+          this.app.state.zoom.value,
+        )
+      : [];
+
+  handlePointerDown = (event: React.PointerEvent<HTMLElement>): boolean => {
+    if (
+      this.dragPointerId !== null ||
+      this.app.state.viewModeEnabled ||
+      this.app.state.activeTool.type !== "selection"
+    ) {
+      return false;
+    }
+
+    const selectedElements = this.app.scene.getSelectedElements(this.app.state);
+    const selectedElement = selectedElements[0];
+    if (
+      selectedElements.length !== 1 ||
+      !selectedElement ||
+      !isDragFlowchartNodeElement(selectedElement) ||
+      selectedElement.locked ||
+      this.app.state.selectedLinearElement
+    ) {
+      return false;
+    }
+
+    const pointer = viewportCoordsToSceneCoords(event, this.app.state);
+    const direction = getFlowchartHandleAtPoint(
+      selectedElement,
+      this.app.scene.getNonDeletedElementsMap(),
+      pointFrom<GlobalPoint>(pointer.x, pointer.y),
+      this.app.state.zoom.value,
+    );
+    if (!direction) {
+      return false;
+    }
+
+    this.dragPointerId = event.pointerId;
+    this.creator.beginDrag(
+      selectedElement,
+      direction,
+      this.app.state,
+      this.app.scene,
+    );
+    event.preventDefault();
+    (event.target as HTMLElement).setPointerCapture?.(event.pointerId);
+
+    const onPointerMove = (moveEvent: PointerEvent) => {
+      if (moveEvent.pointerId !== this.dragPointerId) {
+        return;
+      }
+      const next = viewportCoordsToSceneCoords(
+        {
+          clientX: moveEvent.clientX,
+          clientY: moveEvent.clientY,
+        },
+        this.app.state,
+      );
+      this.creator.updateDrag(pointFrom<GlobalPoint>(next.x, next.y));
+      this.app.triggerRender(true);
+    };
+    const onPointerUp = (upEvent: PointerEvent) => {
+      if (upEvent.pointerId !== this.dragPointerId) {
+        return;
+      }
+      this.finishDrag(upEvent.type === "pointerup");
+    };
+    const onKeyDown = (keyEvent: KeyboardEvent) => {
+      if (keyEvent.key === KEYS.ESCAPE) {
+        keyEvent.preventDefault();
+        this.cancelDrag();
+      }
+    };
+
+    this.removeDragListeners = () => {
+      this.app.ownerWindow.removeEventListener("pointermove", onPointerMove);
+      this.app.ownerWindow.removeEventListener("pointerup", onPointerUp);
+      this.app.ownerWindow.removeEventListener("pointercancel", onPointerUp);
+      this.app.ownerWindow.removeEventListener("keydown", onKeyDown);
+    };
+    this.app.ownerWindow.addEventListener("pointermove", onPointerMove);
+    this.app.ownerWindow.addEventListener("pointerup", onPointerUp);
+    this.app.ownerWindow.addEventListener("pointercancel", onPointerUp);
+    this.app.ownerWindow.addEventListener("keydown", onKeyDown);
+    return true;
+  };
+
+  private finishDrag = (commit: boolean) => {
+    this.removeDragListeners?.();
+    this.removeDragListeners = null;
+    this.dragPointerId = null;
+
+    if (!commit) {
+      this.creator.cancelDrag();
+      this.app.triggerRender(true);
+      return;
+    }
+
+    const result = this.creator.commitDrag();
+    if (!result) {
+      this.app.triggerRender(true);
+      return;
+    }
+
+    this.app.insertNewElements(result.nodes);
+    const nextNode = result.nodes.find(
+      (element) => element.type === "rectangle" || element.type === "diamond",
+    );
+    const arrow = result.nodes.find(isArrowElement);
+    if (arrow && nextNode && isDragFlowchartNodeElement(nextNode)) {
+      bindBindingElement(
+        arrow,
+        result.startNode,
+        "orbit",
+        "start",
+        this.app.scene,
+      );
+      bindBindingElement(arrow, nextNode, "orbit", "end", this.app.scene);
+    }
+    if (nextNode) {
+      this.selectAndReveal(nextNode);
+    }
+    this.captureUpdate();
+  };
+
+  private cancelDrag = () => {
+    if (!this.creator.isDragging) {
+      return;
+    }
+    this.finishDrag(false);
+  };
+
+  handlePointerCancel = () => {
+    this.cancelDrag();
   };
 
   handleKeyEvent = (event: React.KeyboardEvent | KeyboardEvent): boolean => {
@@ -101,8 +258,16 @@ export class AppFlowchart {
 
     if (event.type === "keydown") {
       if (event.key === KEYS.ESCAPE && creator.isCreatingChart) {
-        creator.clear();
+        if (creator.isDragging) {
+          this.cancelDrag();
+        } else {
+          creator.clear();
+        }
         return { type: "canceled" };
+      }
+
+      if (creator.isDragging) {
+        return { type: "none" };
       }
 
       if (!isArrowKey(event.key)) {
@@ -156,7 +321,11 @@ export class AppFlowchart {
       navigator.clear();
     }
 
-    if (!event[KEYS.CTRL_OR_CMD] && creator.isCreatingChart) {
+    if (
+      !creator.isDragging &&
+      !event[KEYS.CTRL_OR_CMD] &&
+      creator.isCreatingChart
+    ) {
       const nodes = creator.pendingNodes ?? [];
       creator.clear();
       return { type: "committed", nodes };

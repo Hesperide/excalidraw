@@ -5,6 +5,7 @@ import {
   type GlobalPoint,
   pointFrom,
   type LocalPoint,
+  pointRotateRads,
 } from "@excalidraw/math";
 
 import type {
@@ -12,7 +13,10 @@ import type {
   PendingExcalidrawElements,
 } from "@excalidraw/excalidraw/types";
 
-import { bindBindingElement } from "./binding";
+import {
+  bindBindingElement,
+  calculateFixedPointForElbowArrowBinding,
+} from "./binding";
 import { updateElbowArrowPoints } from "./elbowArrow";
 import {
   HEADING_DOWN,
@@ -30,7 +34,7 @@ import {
   newElement,
   newStickyNoteElement,
 } from "./newElement";
-import { aabbForElement } from "./bounds";
+import { aabbForElement, getElementAbsoluteCoords } from "./bounds";
 import { elementsAreInFrameBounds, elementOverlapsWithFrame } from "./frame";
 import {
   isBindableElement,
@@ -53,6 +57,67 @@ import {
 import type { Scene } from "./Scene";
 
 export type LinkDirection = "up" | "right" | "down" | "left";
+
+export type FlowchartHandle = {
+  direction: LinkDirection;
+  point: GlobalPoint;
+};
+
+const FLOWCHART_HANDLE_OFFSET = 24;
+const FLOWCHART_HANDLE_HIT_RADIUS = 14;
+
+export const isDragFlowchartNodeElement = (
+  element: ExcalidrawElement,
+): element is ExcalidrawFlowchartNodeElement & {
+  type: "rectangle" | "diamond";
+} => element.type === "rectangle" || element.type === "diamond";
+
+export const getFlowchartHandlePoints = (
+  element: ExcalidrawFlowchartNodeElement,
+  elementsMap: ElementsMap,
+  zoom = 1,
+): FlowchartHandle[] => {
+  const [x1, y1, x2, y2, cx, cy] = getElementAbsoluteCoords(
+    element,
+    elementsMap,
+    true,
+  );
+  const offset = FLOWCHART_HANDLE_OFFSET / zoom;
+  const points: Array<{ direction: LinkDirection; x: number; y: number }> = [
+    { direction: "up", x: cx, y: y1 - offset },
+    { direction: "right", x: x2 + offset, y: cy },
+    { direction: "down", x: cx, y: y2 + offset },
+    { direction: "left", x: x1 - offset, y: cy },
+  ];
+
+  return points.map(({ direction, x, y }) => {
+    const rotated = pointRotateRads(
+      pointFrom(x, y),
+      pointFrom(cx, cy),
+      element.angle,
+    );
+    return {
+      direction,
+      point: pointFrom<GlobalPoint>(rotated[0], rotated[1]),
+    };
+  });
+};
+
+export const getFlowchartHandleAtPoint = (
+  element: ExcalidrawFlowchartNodeElement,
+  elementsMap: ElementsMap,
+  point: GlobalPoint,
+  zoom = 1,
+): LinkDirection | null => {
+  const radius = FLOWCHART_HANDLE_HIT_RADIUS / zoom;
+  return (
+    getFlowchartHandlePoints(element, elementsMap, zoom).find(
+      ({ point: handlePoint }) =>
+        Math.hypot(point[0] - handlePoint[0], point[1] - handlePoint[1]) <=
+        radius,
+    )?.direction ?? null
+  );
+};
 
 const VERTICAL_OFFSET = 100;
 const HORIZONTAL_OFFSET = 100;
@@ -307,12 +372,33 @@ export const addNewNodes = (
   return { nodes, crossStart };
 };
 
+const addNewNodeAt = (
+  startNode: NonDeleted<ExcalidrawFlowchartNodeElement>,
+  appState: AppState,
+  direction: LinkDirection,
+  scene: Scene,
+  x: number,
+  y: number,
+) => {
+  const nextNode = cloneFlowchartNode(startNode, x, y);
+  const bindingArrow = createBindingArrow(
+    startNode,
+    nextNode,
+    direction,
+    appState,
+    scene,
+    false,
+  );
+  return [nextNode, bindingArrow] as NonDeletedExcalidrawElement[];
+};
+
 const createBindingArrow = (
   startBindingElement: NonDeleted<ExcalidrawFlowchartNodeElement>,
   endBindingElement: NonDeleted<ExcalidrawFlowchartNodeElement>,
   direction: LinkDirection,
   appState: AppState,
   scene: Scene,
+  mutateBindings = true,
 ) => {
   let startX: number;
   let startY: number;
@@ -385,14 +471,45 @@ const createBindingArrow = (
 
   const elementsMap = scene.getNonDeletedElementsMap();
 
-  bindBindingElement(
-    bindingArrow,
-    startBindingElement,
-    "orbit",
-    "start",
-    scene,
-  );
-  bindBindingElement(bindingArrow, endBindingElement, "orbit", "end", scene);
+  if (mutateBindings) {
+    bindBindingElement(
+      bindingArrow,
+      startBindingElement,
+      "orbit",
+      "start",
+      scene,
+    );
+    bindBindingElement(bindingArrow, endBindingElement, "orbit", "end", scene);
+  } else {
+    const previewElementsMap = toBrandedType<NonDeletedSceneElementsMap>(
+      new Map([
+        ...scene.getNonDeletedElementsMap().entries(),
+        [startBindingElement.id, startBindingElement],
+        [endBindingElement.id, endBindingElement],
+        [bindingArrow.id, bindingArrow],
+      ] as [string, Ordered<NonDeletedExcalidrawElement>][]),
+    );
+    bindingArrow.startBinding = {
+      elementId: startBindingElement.id,
+      mode: "orbit",
+      ...calculateFixedPointForElbowArrowBinding(
+        bindingArrow,
+        startBindingElement,
+        "start",
+        previewElementsMap,
+      ),
+    };
+    bindingArrow.endBinding = {
+      elementId: endBindingElement.id,
+      mode: "orbit",
+      ...calculateFixedPointForElbowArrowBinding(
+        bindingArrow,
+        endBindingElement,
+        "end",
+        previewElementsMap,
+      ),
+    };
+  }
 
   const changedElements = new Map<string, OrderedExcalidrawElement>();
   changedElements.set(
@@ -679,6 +796,24 @@ export class FlowChartCreator {
   // already-visible pending nodes in place
   private clusterCrossStart: number | null = null;
   pendingNodes: PendingExcalidrawElements | null = null;
+  private dragStartNode: NonDeleted<ExcalidrawFlowchartNodeElement> | null =
+    null;
+  private dragDirection: LinkDirection | null = null;
+  private dragAppState: AppState | null = null;
+  private dragScene: Scene | null = null;
+  private dragMoved = false;
+
+  get isDragging() {
+    return this.dragStartNode !== null;
+  }
+
+  get draggingDirection() {
+    return this.dragDirection;
+  }
+
+  get draggingStartNode() {
+    return this.dragStartNode;
+  }
 
   createNodes(
     startNode: NonDeleted<ExcalidrawFlowchartNodeElement>,
@@ -736,12 +871,104 @@ export class FlowChartCreator {
     }
   }
 
+  beginDrag(
+    startNode: NonDeleted<ExcalidrawFlowchartNodeElement>,
+    direction: LinkDirection,
+    appState: AppState,
+    scene: Scene,
+  ) {
+    this.clear();
+    this.dragStartNode = startNode;
+    this.dragDirection = direction;
+    this.dragAppState = appState;
+    this.dragScene = scene;
+    this.isCreatingChart = true;
+    this.pendingNodes = null;
+    this.dragMoved = false;
+  }
+
+  updateDrag(point: GlobalPoint) {
+    if (
+      !this.dragStartNode ||
+      !this.dragDirection ||
+      !this.dragAppState ||
+      !this.dragScene
+    ) {
+      return;
+    }
+
+    const node = this.dragStartNode;
+    const halfWidth = node.width / 2;
+    const halfHeight = node.height / 2;
+    let x = point[0] - halfWidth;
+    let y = point[1] - halfHeight;
+
+    switch (this.dragDirection) {
+      case "right":
+        x = Math.max(x, node.x + node.width + HORIZONTAL_OFFSET);
+        break;
+      case "left":
+        x = Math.min(x, node.x - HORIZONTAL_OFFSET - node.width);
+        break;
+      case "down":
+        y = Math.max(y, node.y + node.height + VERTICAL_OFFSET);
+        break;
+      case "up":
+        y = Math.min(y, node.y - VERTICAL_OFFSET - node.height);
+        break;
+    }
+
+    this.dragMoved =
+      this.dragMoved ||
+      Math.hypot(
+        point[0] - (node.x + node.width / 2),
+        point[1] - (node.y + node.height / 2),
+      ) > 4;
+    this.pendingNodes = addNewNodeAt(
+      node,
+      this.dragAppState,
+      this.dragDirection,
+      this.dragScene,
+      x,
+      y,
+    );
+  }
+
+  commitDrag() {
+    if (!this.isDragging || !this.dragMoved) {
+      this.clear();
+      return null;
+    }
+    const nodes = this.pendingNodes;
+    const startNode = this.dragStartNode;
+    this.dragStartNode = null;
+    this.dragDirection = null;
+    this.dragAppState = null;
+    this.dragScene = null;
+    this.pendingNodes = null;
+    this.isCreatingChart = false;
+    this.dragMoved = false;
+    return nodes && startNode ? { nodes, startNode } : null;
+  }
+
+  cancelDrag() {
+    if (!this.isDragging) {
+      return;
+    }
+    this.clear();
+  }
+
   clear() {
     this.isCreatingChart = false;
     this.pendingNodes = null;
     this.direction = null;
     this.numberOfNodes = 0;
     this.clusterCrossStart = null;
+    this.dragStartNode = null;
+    this.dragDirection = null;
+    this.dragAppState = null;
+    this.dragScene = null;
+    this.dragMoved = false;
   }
 }
 
