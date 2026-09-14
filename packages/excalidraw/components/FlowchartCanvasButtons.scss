@@ -1,0 +1,7 @@
+.excalidraw {
+  .excalidraw-flowchart-direction-picker {
+    display: grid;
+    grid-template-columns: repeat(2, auto);
+    gap: 0.25rem;
+  }
+}
