@@ -2691,7 +2691,10 @@ class App extends React.Component<AppProps, AppState> {
                             onClick={this.handleCanvasClick}
                             onPointerMove={this.handleCanvasPointerMove}
                             onPointerUp={this.handleCanvasPointerUp}
-                            onPointerCancel={this.removePointer}
+                            onPointerCancel={(event) => {
+                              this.flowchart.handlePointerCancel();
+                              this.removePointer(event);
+                            }}
                             onTouchMove={this.handleTouchMove}
                             onPointerDown={this.handleCanvasPointerDown}
                             onDoubleClick={this.handleCanvasDoubleClick}
@@ -8520,6 +8523,10 @@ class App extends React.Component<AppProps, AppState> {
     // this makes other elements non-interactive until pointer up
     if (target.setPointerCapture) {
       target.setPointerCapture(event.pointerId);
+    }
+
+    if (this.flowchart.handlePointerDown(event)) {
+      return;
     }
 
     this.maybeCleanupAfterMissingPointerUp(event.nativeEvent);

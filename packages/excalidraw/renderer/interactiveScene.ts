@@ -55,7 +55,9 @@ import { renderSelectionElement } from "@excalidraw/element";
 import { getCommonBounds, getElementAbsoluteCoords } from "@excalidraw/element";
 import {
   getGlobalFixedPointForBindableElement,
+  isDragFlowchartNodeElement,
   isFocusPointVisible,
+  type FlowchartHandle,
 } from "@excalidraw/element";
 
 import type { EditorInterface } from "@excalidraw/common";
@@ -1064,6 +1066,75 @@ const renderSelectionBorder = (
   context.restore();
 };
 
+const renderFlowchartHandles = (
+  context: CanvasRenderingContext2D,
+  app: AppClassProperties,
+  appState: InteractiveCanvasAppState,
+  selectedElements: readonly NonDeletedExcalidrawElement[],
+  selectionColor: string | undefined,
+) => {
+  const element = selectedElements[0];
+  if (
+    selectedElements.length !== 1 ||
+    !element ||
+    !isDragFlowchartNodeElement(element) ||
+    element.locked ||
+    appState.viewModeEnabled ||
+    appState.activeTool.type !== "selection" ||
+    appState.editingTextElement ||
+    appState.selectedLinearElement ||
+    app.flowchart.isDragging()
+  ) {
+    return;
+  }
+
+  const handles = app.flowchart.getDirectionalHandlePoints(element);
+  if (!handles.length) {
+    return;
+  }
+
+  const [x1, y1, x2, y2] = getElementAbsoluteCoords(
+    element,
+    app.scene.getNonDeletedElementsMap(),
+    true,
+  );
+  const centerX = (x1 + x2) / 2 + appState.scrollX;
+  const centerY = (y1 + y2) / 2 + appState.scrollY;
+  const radius = 8 / appState.zoom.value;
+
+  context.save();
+  context.fillStyle = getThemedColor("#fff", appState.theme);
+  context.strokeStyle =
+    selectionColor || getThemedColor("#5e5ad8", appState.theme);
+  context.lineWidth = 1 / appState.zoom.value;
+  handles.forEach(({ point }: FlowchartHandle) => {
+    const x = point[0] + appState.scrollX;
+    const y = point[1] + appState.scrollY;
+    const dx = x - centerX;
+    const dy = y - centerY;
+    const length = Math.hypot(dx, dy) || 1;
+    const ux = dx / length;
+    const uy = dy / length;
+    context.beginPath();
+    context.arc(x, y, radius, 0, 2 * Math.PI);
+    context.fill();
+    context.stroke();
+    context.beginPath();
+    context.moveTo(x + ux * radius * 0.65, y + uy * radius * 0.65);
+    context.lineTo(
+      x - ux * radius * 0.45 - uy * radius * 0.45,
+      y - uy * radius * 0.45 + ux * radius * 0.45,
+    );
+    context.moveTo(x + ux * radius * 0.65, y + uy * radius * 0.65);
+    context.lineTo(
+      x - ux * radius * 0.45 + uy * radius * 0.45,
+      y - uy * radius * 0.45 - ux * radius * 0.45,
+    );
+    context.stroke();
+  });
+  context.restore();
+};
+
 const renderFrameHighlight = (
   context: CanvasRenderingContext2D,
   appState: InteractiveCanvasAppState,
@@ -1981,6 +2052,14 @@ const _renderInteractiveScene = ({
         renderSelectionBorder(context, appState, selection),
       );
     }
+    renderFlowchartHandles(
+      context,
+      app,
+      appState,
+      selectedElements,
+      renderConfig.selectionColor,
+    );
+
     // Paint resize transformHandles
     context.save();
     context.translate(appState.scrollX, appState.scrollY);

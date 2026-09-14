@@ -5,6 +5,7 @@ import { Excalidraw } from "@excalidraw/excalidraw";
 import { API } from "@excalidraw/excalidraw/tests/helpers/api";
 import { UI, Keyboard, Pointer } from "@excalidraw/excalidraw/tests/helpers/ui";
 import {
+  fireEvent,
   render,
   unmountComponent,
 } from "@excalidraw/excalidraw/tests/test-utils";
@@ -155,6 +156,67 @@ describe("flow chart creation", () => {
 
     expect(firstChildNode.x).toBe(secondChildNode.x);
     expect(secondChildNode.x).toBe(thirdChildNode.x);
+  });
+
+  it("creates a connected node by dragging a directional handle", () => {
+    const initialNode = h.elements[0];
+
+    mouse.downAt(initialNode.x + initialNode.width + 24, initialNode.y + 50);
+    mouse.moveTo(initialNode.x + initialNode.width + 400, initialNode.y + 50);
+    mouse.up();
+
+    expect(h.elements.filter((el) => el.type === "rectangle")).toHaveLength(2);
+    expect(h.elements.filter((el) => el.type === "arrow")).toHaveLength(1);
+    const arrow = h.elements.find((el) => el.type === "arrow");
+    expect(
+      arrow && "startBinding" in arrow ? arrow.startBinding : null,
+    ).toEqual(expect.objectContaining({ elementId: initialNode.id }));
+  });
+
+  it("does not commit a directional-handle drag when escaped", () => {
+    const initialNode = h.elements[0];
+
+    mouse.downAt(initialNode.x + initialNode.width + 24, initialNode.y + 50);
+    mouse.moveTo(initialNode.x + initialNode.width + 400, initialNode.y + 50);
+    Keyboard.keyPress(KEYS.ESCAPE);
+    mouse.up();
+
+    expect(h.elements).toHaveLength(1);
+    expect(h.elements[0]).toEqual(initialNode);
+  });
+
+  it("supports directional handles on diamonds", () => {
+    API.clearSelection();
+    const diamond = API.createElement({
+      type: "diamond",
+      width: 200,
+      height: 100,
+    });
+    API.setElements([diamond]);
+    API.setSelectedElements([diamond]);
+
+    mouse.downAt(diamond.x + diamond.width + 24, diamond.y + 50);
+    mouse.moveTo(diamond.x + diamond.width + 400, diamond.y + 50);
+    mouse.up();
+
+    expect(h.elements.filter((el) => el.type === "diamond")).toHaveLength(2);
+    expect(h.elements.filter((el) => el.type === "arrow")).toHaveLength(1);
+  });
+
+  it("leaves the scene unchanged when a directional drag is canceled", () => {
+    const initialNode = h.elements[0];
+
+    mouse.downAt(initialNode.x + initialNode.width + 24, initialNode.y + 50);
+    mouse.moveTo(initialNode.x + initialNode.width + 400, initialNode.y + 50);
+    fireEvent.pointerCancel(h.app.interactiveCanvas!, {
+      clientX: initialNode.x + initialNode.width + 400,
+      clientY: initialNode.y + 50,
+      pointerId: 1,
+      pointerType: "mouse",
+    });
+
+    expect(h.elements).toHaveLength(1);
+    expect(h.elements[0]).toEqual(initialNode);
   });
 
   // regression for #8518: additional siblings must not overlap existing ones
