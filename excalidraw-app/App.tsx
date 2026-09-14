@@ -189,7 +189,10 @@ window.addEventListener(
 
 let isSelfEmbedding = false;
 
-if (window.self !== window.top) {
+// Development previews (including Replit's canvas preview) intentionally embed
+// the app in a same-origin iframe. Keep the production recursion guard without
+// replacing legitimate development previews with the self-embedding fallback.
+if (!isDevEnv() && window.self !== window.top) {
   try {
     const parentUrl = new URL(document.referrer);
     const currentUrl = new URL(window.location.href);
