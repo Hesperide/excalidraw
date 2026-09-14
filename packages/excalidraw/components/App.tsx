@@ -422,6 +422,7 @@ import {
   getViewportForZoomWithScrollConstraints,
 } from "../viewport";
 import { ElementCanvasButtons } from "../components/ElementCanvasButtons";
+import { FlowchartCanvasButtons } from "../components/FlowchartCanvasButtons";
 import { LaserTrails } from "../laserTrails";
 import { withBatchedUpdates, withBatchedUpdatesThrottled } from "../reactUtils";
 import { isPointHittingTextAutoResizeHandle } from "../textAutoResizeHandle";
@@ -2513,6 +2514,21 @@ class App extends React.Component<AppProps, AppState> {
                                 setToast={this.setToast}
                                 updateEmbedValidationStatus={
                                   this.updateEmbedValidationStatus
+                                }
+                              />
+                            )}
+                          {this.isDefaultUIEnabled() &&
+                            selectedElements.length === 1 &&
+                            (firstSelectedElement.type === "rectangle" ||
+                              firstSelectedElement.type === "diamond") && (
+                              <FlowchartCanvasButtons
+                                element={firstSelectedElement}
+                                elementsMap={renderableElementsMap}
+                                onCreate={(direction) =>
+                                  this.flowchart.createNodeFromCanvasControl(
+                                    firstSelectedElement,
+                                    direction,
+                                  )
                                 }
                               />
                             )}
