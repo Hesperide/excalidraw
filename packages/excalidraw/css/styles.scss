@@ -327,6 +327,7 @@ body.excalidraw-cursor-resize * {
 
   .App-toolbar {
     display: flex;
+    flex-direction: column;
     justify-content: center;
 
     .eraser {
@@ -435,11 +436,16 @@ body.excalidraw-cursor-resize * {
   }
 
   .App-menu_top > .shapes-section {
-    grid-column: 2;
+    position: fixed;
+    top: 5rem;
+    left: 1rem;
+    grid-column: 1;
+    justify-content: flex-start;
   }
 
   .selected-shape-actions-container {
     width: fit-content;
+    margin-left: 16.5rem;
 
     &--compact {
       min-width: 48px;

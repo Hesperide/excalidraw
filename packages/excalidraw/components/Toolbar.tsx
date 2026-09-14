@@ -9,7 +9,6 @@ import { t } from "../i18n";
 import { useEditorInterface, useStylesPanelMode } from "./App";
 import { HintViewer } from "./HintViewer";
 import { Island } from "./Island";
-import { LockButton } from "./LockButton";
 import { PenModeButton } from "./PenModeButton";
 import Stack from "./Stack";
 import DropdownMenu from "./dropdownMenu/DropdownMenu";
@@ -219,6 +218,31 @@ const ExtraToolsDropdown = ({
   );
 };
 
+const VisualTool = ({
+  label,
+  preview,
+  children,
+}: {
+  label: string;
+  preview: "box" | "diamond" | "ellipse" | "arrow" | "line" | "ink" | "text";
+  children: React.ReactNode;
+}) => (
+  <div
+    className="App-toolbar__visual-tool"
+    onClick={(event) => {
+      if (!(event.target as HTMLElement).closest("button")) {
+        event.currentTarget.querySelector("button")?.click();
+      }
+    }}
+  >
+    <div className={`App-toolbar__preview App-toolbar__preview--${preview}`}>
+      <span />
+    </div>
+    <span className="App-toolbar__visual-tool-label">{label}</span>
+    {children}
+  </div>
+);
+
 /** the main (desktop/tablet) toolbar island */
 export const Toolbar = ({
   app,
@@ -242,6 +266,7 @@ export const Toolbar = ({
 
   const activeTool = appState.activeTool;
   const toolProps = { app, activeTool };
+  const [isExpanded, setIsExpanded] = useState(true);
 
   return (
     <Island
@@ -249,6 +274,7 @@ export const Toolbar = ({
       className={clsx("App-toolbar", {
         "zen-mode": appState.zenModeEnabled,
         "App-toolbar--compact": isCompactStylesPanel,
+        "App-toolbar--collapsed": !isExpanded,
       })}
       data-viewport-ui="top"
     >
@@ -259,7 +285,63 @@ export const Toolbar = ({
         app={app}
       />
       {heading}
-      <Stack.Row gap={isCompactStylesPanel ? 0.5 : 1}>
+      <div className="App-toolbar__header">
+        <div>
+          <strong>Toolbox</strong>
+          {isExpanded && <span>Draw with intent</span>}
+        </div>
+        <button
+          type="button"
+          className="App-toolbar__collapse"
+          aria-expanded={isExpanded}
+          aria-label={isExpanded ? "Collapse toolbox" : "Expand toolbox"}
+          onClick={() => setIsExpanded((expanded) => !expanded)}
+        >
+          {isExpanded ? "‹" : "›"}
+        </button>
+      </div>
+      {isExpanded && (
+        <div className="App-toolbar__groups" role="toolbar" aria-label="Tools">
+          <section>
+            <h3>Shapes</h3>
+            <VisualTool label="Rectangle" preview="box">
+              <RectangleToolButton {...toolProps} hideKeyBinding />
+            </VisualTool>
+            <VisualTool label="Diamond" preview="diamond">
+              <DiamondToolButton {...toolProps} hideKeyBinding />
+            </VisualTool>
+            <VisualTool label="Ellipse" preview="ellipse">
+              <EllipseToolButton {...toolProps} hideKeyBinding />
+            </VisualTool>
+          </section>
+          <section>
+            <h3>Connectors</h3>
+            <VisualTool label="Arrow" preview="arrow">
+              <ArrowToolButton {...toolProps} hideKeyBinding />
+            </VisualTool>
+            <VisualTool label="Line" preview="line">
+              <LineToolButton {...toolProps} hideKeyBinding />
+            </VisualTool>
+          </section>
+          <section>
+            <h3>Annotations</h3>
+            <VisualTool label="Free draw" preview="ink">
+              {isCompactStylesPanel ? (
+                <FreedrawToolPopover {...toolProps} />
+              ) : (
+                <FreedrawToolButton {...toolProps} hideKeyBinding />
+              )}
+            </VisualTool>
+            <VisualTool label="Text" preview="text">
+              <TextToolButton {...toolProps} hideKeyBinding />
+            </VisualTool>
+            <VisualTool label="Note" preview="box">
+              <StickyNoteToolButton {...toolProps} hideKeyBinding />
+            </VisualTool>
+          </section>
+        </div>
+      )}
+      <Stack.Row gap={0.5} className="App-toolbar__utilities">
         {/* in compact UI the pen mode button is rendered as a separate
             floating button below the compact actions menu */}
         {!isCompactStylesPanel && (
@@ -272,13 +354,18 @@ export const Toolbar = ({
         )}
         {app.props.activeTool == null && (
           <>
-            <LockButton
-              checked={appState.activeTool.locked}
-              onChange={onLockToggle}
-              title={t("toolBar.lock")}
-              // the active tool — including its lock state — is host-controlled
-              disabled={app.props.activeTool != null}
-            />
+            <button
+              type="button"
+              className={clsx("App-toolbar__utility-button", {
+                "App-toolbar__utility-button--active":
+                  appState.activeTool.locked,
+              })}
+              onClick={onLockToggle}
+              aria-pressed={appState.activeTool.locked}
+              title={`${t("toolBar.lock")} — Q`}
+            >
+              Keep active
+            </button>
 
             <div
               className="App-toolbar__divider"
@@ -295,24 +382,7 @@ export const Toolbar = ({
         ) : (
           <SelectionToolButton {...toolProps} />
         )}
-        <RectangleToolButton {...toolProps} />
-        <DiamondToolButton {...toolProps} />
-        <EllipseToolButton {...toolProps} />
-        <ArrowToolButton {...toolProps} />
-        <LineToolButton {...toolProps} />
-        {isCompactStylesPanel ? (
-          <FreedrawToolPopover {...toolProps} />
-        ) : (
-          <FreedrawToolButton {...toolProps} />
-        )}
-        <TextToolButton {...toolProps} />
-        <StickyNoteToolButton {...toolProps} />
         <EraserToolButton {...toolProps} />
-
-        <div
-          className="App-toolbar__divider"
-          style={{ marginLeft: "0.25rem" }}
-        />
 
         <ExtraToolsDropdown
           app={app}
