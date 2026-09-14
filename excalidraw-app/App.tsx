@@ -189,7 +189,7 @@ window.addEventListener(
 
 let isSelfEmbedding = false;
 
-if (window.self !== window.top) {
+if (import.meta.env.PROD && window.self !== window.top) {
   try {
     const parentUrl = new URL(document.referrer);
     const currentUrl = new URL(window.location.href);
