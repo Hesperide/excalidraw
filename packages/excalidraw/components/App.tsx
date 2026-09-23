@@ -473,6 +473,8 @@ import { findShapeByKey, TOGGLE_TOOLS } from "./Tools";
 
 import UnlockPopup from "./UnlockPopup";
 
+import "./App.flowchart.scss";
+
 import type { ExcalidrawLibraryIds } from "../data/types";
 
 import type {
@@ -2317,6 +2319,20 @@ class App extends React.Component<AppProps, AppState> {
 
   public render() {
     const selectedElements = this.scene.getSelectedElements(this.state);
+    const flowchartButtonNode =
+      selectedElements.length === 1 &&
+      (selectedElements[0].type === "rectangle" ||
+        selectedElements[0].type === "diamond") &&
+      this.state.activeTool.type === "selection" &&
+      !this.state.viewModeEnabled &&
+      !this.state.editingTextElement &&
+      !this.state.selectedElementsAreBeingDragged &&
+      !this.state.resizingElement &&
+      !this.state.newElement &&
+      !this.state.selectionElement &&
+      !this.state.isLoading
+        ? selectedElements[0]
+        : null;
     const { renderTopRightUI, renderTopLeftUI, renderCustomStats } = this.props;
 
     const {
@@ -2696,6 +2712,74 @@ class App extends React.Component<AppProps, AppState> {
                             onPointerDown={this.handleCanvasPointerDown}
                             onDoubleClick={this.handleCanvasDoubleClick}
                           />
+                          {flowchartButtonNode && (
+                            <div
+                              className="flowchart-side-actions"
+                              aria-label="Add connected flowchart shape"
+                            >
+                              {(["up", "right", "down", "left"] as const).map(
+                                (direction) => {
+                                  const { x, y, width, height } =
+                                    flowchartButtonNode;
+                                  const point = {
+                                    up: { sceneX: x + width / 2, sceneY: y },
+                                    right: {
+                                      sceneX: x + width,
+                                      sceneY: y + height / 2,
+                                    },
+                                    down: {
+                                      sceneX: x + width / 2,
+                                      sceneY: y + height,
+                                    },
+                                    left: { sceneX: x, sceneY: y + height / 2 },
+                                  }[direction];
+                                  const position = sceneCoordsToViewportCoords(
+                                    point,
+                                    this.state,
+                                  );
+                                  const gap = 22;
+                                  return (
+                                    <button
+                                      key={direction}
+                                      type="button"
+                                      className="flowchart-side-actions__button"
+                                      aria-label={`Add connected shape ${direction}`}
+                                      title={`Add connected shape ${direction}`}
+                                      style={{
+                                        left:
+                                          position.x -
+                                          this.state.offsetLeft +
+                                          (direction === "left"
+                                            ? -gap
+                                            : direction === "right"
+                                            ? gap
+                                            : 0),
+                                        top:
+                                          position.y -
+                                          this.state.offsetTop +
+                                          (direction === "up"
+                                            ? -gap
+                                            : direction === "down"
+                                            ? gap
+                                            : 0),
+                                      }}
+                                      onPointerDown={(event) =>
+                                        event.stopPropagation()
+                                      }
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        this.flowchart.createFromSelected(
+                                          direction,
+                                        );
+                                      }}
+                                    >
+                                      +
+                                    </button>
+                                  );
+                                },
+                              )}
+                            </div>
+                          )}
                           {this.props.viewportStatusFrame?.border &&
                             this.editorInterface.formFactor === "phone" && (
                               <ViewportStatusBorder
