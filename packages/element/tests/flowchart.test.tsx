@@ -1,4 +1,5 @@
 import { KEYS, reseed } from "@excalidraw/common";
+import { act } from "react";
 
 import { Excalidraw } from "@excalidraw/excalidraw";
 
@@ -287,6 +288,60 @@ describe("flow chart creation", () => {
       a.y + a.height > b.y;
 
     expect(overlaps(newChild, lower)).toBe(false);
+  });
+});
+
+describe("flow chart side actions", () => {
+  it("shows four keyboard-focusable actions for a single rectangle and creates a bound successor", () => {
+    const source = API.createElement({
+      type: "rectangle",
+      width: 200,
+      height: 100,
+      strokeColor: "#e03131",
+    });
+    API.setElements([source]);
+    API.setSelectedElements([source]);
+
+    const buttons = document.querySelectorAll<HTMLButtonElement>(
+      ".flowchart-side-actions__button",
+    );
+    expect(buttons).toHaveLength(4);
+    const right = document.querySelector<HTMLButtonElement>(
+      '[aria-label="Add connected shape right"]',
+    );
+    expect(right?.tagName).toBe("BUTTON");
+    expect(right?.tabIndex).toBe(0);
+    act(() => right?.click());
+
+    const child = h.elements.find(
+      (el) => el.type === "rectangle" && el.id !== source.id,
+    );
+    const arrow = h.elements.find((el) => el.type === "arrow");
+    expect(child).toMatchObject({
+      x: 300,
+      y: 0,
+      strokeColor: source.strokeColor,
+    });
+    expect(arrow).toMatchObject({
+      startBinding: { elementId: source.id },
+      endBinding: { elementId: child?.id },
+    });
+    expect(h.state.editingTextElement).toBeTruthy();
+  });
+
+  it("hides actions for multi-selection and non-node elements", () => {
+    const source = API.createElement({ type: "diamond" });
+    const other = API.createElement({ type: "rectangle", x: 300 });
+    API.setElements([source, other]);
+    API.setSelectedElements([source, other]);
+    expect(
+      document.querySelectorAll(".flowchart-side-actions__button"),
+    ).toHaveLength(0);
+
+    API.setSelectedElements([source]);
+    expect(
+      document.querySelectorAll(".flowchart-side-actions__button"),
+    ).toHaveLength(4);
   });
 });
 

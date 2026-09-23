@@ -44,6 +44,50 @@ export class AppFlowchart {
     return this.creator.isCreatingChart;
   }
 
+  /** Create one connected node from the selected shape, without a modifier-key session. */
+  createFromSelected = (direction: LinkDirection) => {
+    const selected = getSelectedElements(
+      this.app.scene.getNonDeletedElementsMap(),
+      this.app.state,
+    );
+    if (
+      selected.length !== 1 ||
+      !isFlowchartNodeElement(selected[0]) ||
+      this.app.state.viewModeEnabled ||
+      this.app.state.editingTextElement
+    ) {
+      return;
+    }
+
+    // A click is a single operation, unlike the repeatable Ctrl/Cmd+arrow
+    // session. Reset first so a previous pending session cannot be committed.
+    this.creator.clear();
+    this.creator.createNodes(
+      selected[0],
+      this.app.state,
+      direction,
+      this.app.scene,
+    );
+    const nodes = this.creator.pendingNodes ?? [];
+    this.creator.clear();
+    if (!nodes.length) {
+      return;
+    }
+
+    this.app.insertNewElements(nodes);
+    const nextNode = nodes[0];
+    this.selectAndReveal(nextNode);
+    this.captureUpdate();
+    // Start the existing bound-text editor on the newly created shape.
+    if (isFlowchartNodeElement(nextNode)) {
+      this.app.startTextEditing({
+        sceneX: nextNode.x + nextNode.width / 2,
+        sceneY: nextNode.y + nextNode.height / 2,
+        container: nextNode,
+      });
+    }
+  };
+
   /** ends any in-progress flowchart creation/navigation session */
   clear = () => {
     this.creator.clear();
