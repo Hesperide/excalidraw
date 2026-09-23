@@ -158,6 +158,7 @@ import {
   isBindableElement,
   isTextElement,
   isStickyNoteElement,
+  isFlowchartNodeElement,
   getNormalizedDimensions,
   isElementCompletelyInViewport,
   isElementInViewport,
@@ -2315,6 +2316,75 @@ class App extends React.Component<AppProps, AppState> {
       event.type === "pointerenter" ? "none" : "auto";
   };
 
+  private renderFlowchartHandles(
+    selectedElements: readonly NonDeletedExcalidrawElement[],
+  ) {
+    if (
+      !this.isInteractionEnabled() ||
+      !isSelectionLikeTool(this.state.activeTool.type) ||
+      this.state.editingTextElement ||
+      this.state.viewModeEnabled ||
+      selectedElements.length !== 1 ||
+      !isFlowchartNodeElement(selectedElements[0])
+    ) {
+      return null;
+    }
+
+    const node = selectedElements[0];
+    const centerX = node.x + node.width / 2;
+    const centerY = node.y + node.height / 2;
+    const directions = [
+      { direction: "up", x: centerX, y: node.y - 24 },
+      { direction: "right", x: node.x + node.width + 24, y: centerY },
+      { direction: "down", x: centerX, y: node.y + node.height + 24 },
+      { direction: "left", x: node.x - 24, y: centerY },
+    ] as const;
+
+    return directions.map(({ direction, x, y }) => {
+      const [rotatedX, rotatedY] = pointRotateRads(
+        pointFrom(x, y),
+        pointFrom(centerX, centerY),
+        node.angle,
+      );
+      const viewport = sceneCoordsToViewportCoords(
+        { sceneX: rotatedX, sceneY: rotatedY },
+        this.state,
+      );
+      return (
+        <button
+          key={`flowchart-${node.id}-${direction}`}
+          type="button"
+          className="flowchart-drag-handle"
+          aria-label={`Drag to add connected shape ${direction}`}
+          title={`Drag to add connected shape ${direction}`}
+          style={{
+            position: "absolute",
+            left: viewport.x - this.state.offsetLeft - 12,
+            top: viewport.y - this.state.offsetTop - 12,
+            width: 24,
+            height: 24,
+            borderRadius: "50%",
+            border: "2px solid #fff",
+            background: "#6965db",
+            color: "#fff",
+            boxShadow: "0 1px 5px #0004",
+            cursor: "grab",
+            zIndex: 5,
+            lineHeight: "18px",
+            padding: 0,
+            fontSize: 17,
+            pointerEvents: "auto",
+          }}
+          onPointerDown={(event) =>
+            this.flowchart.startDrag(event, node, direction)
+          }
+        >
+          +
+        </button>
+      );
+    });
+  }
+
   public render() {
     const selectedElements = this.scene.getSelectedElements(this.state);
     const { renderTopRightUI, renderTopLeftUI, renderCustomStats } = this.props;
@@ -2696,6 +2766,7 @@ class App extends React.Component<AppProps, AppState> {
                             onPointerDown={this.handleCanvasPointerDown}
                             onDoubleClick={this.handleCanvasDoubleClick}
                           />
+                          {this.renderFlowchartHandles(selectedElements)}
                           {this.props.viewportStatusFrame?.border &&
                             this.editorInterface.formFactor === "phone" && (
                               <ViewportStatusBorder

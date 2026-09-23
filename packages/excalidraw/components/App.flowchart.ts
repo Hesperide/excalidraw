@@ -1,4 +1,8 @@
-import { isArrowKey, KEYS } from "@excalidraw/common";
+import {
+  isArrowKey,
+  KEYS,
+  viewportCoordsToSceneCoords,
+} from "@excalidraw/common";
 
 import {
   makeNextSelectedElementIds,
@@ -8,6 +12,7 @@ import {
   getSelectedElements,
   isFlowchartNodeElement,
   type LinkDirection,
+  type FlowchartPlacement,
 } from "@excalidraw/element";
 
 import type {
@@ -32,12 +37,19 @@ type FlowchartOperation =
  */
 export class AppFlowchart {
   private creator = new FlowChartCreator();
+  private dragCreator = new FlowChartCreator();
   private navigator = new FlowChartNavigator();
+  private dragSession: {
+    pointerId: number;
+    originX: number;
+    originY: number;
+    sourceId: string;
+  } | null = null;
 
   constructor(private app: App) {}
 
   get pendingNodes() {
-    return this.creator.pendingNodes;
+    return this.dragCreator.pendingNodes ?? this.creator.pendingNodes;
   }
 
   get isCreatingChart() {
@@ -46,8 +58,145 @@ export class AppFlowchart {
 
   /** ends any in-progress flowchart creation/navigation session */
   clear = () => {
+    this.cancelDrag();
     this.creator.clear();
     this.navigator.clear();
+  };
+
+  startDrag = (
+    event: React.PointerEvent,
+    node: NonDeletedExcalidrawElement,
+    direction: LinkDirection,
+  ) => {
+    if (!isFlowchartNodeElement(node) || event.button !== 0) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    this.cancelDrag();
+    this.dragSession = {
+      pointerId: event.pointerId,
+      originX: event.clientX,
+      originY: event.clientY,
+      sourceId: node.id,
+    };
+
+    const onMove = (move: PointerEvent) => {
+      const session = this.dragSession;
+      if (!session || move.pointerId !== session.pointerId) {
+        return;
+      }
+      if (
+        Math.hypot(
+          move.clientX - session.originX,
+          move.clientY - session.originY,
+        ) < 8
+      ) {
+        return;
+      }
+      const source = this.app.scene
+        .getNonDeletedElementsMap()
+        .get(session.sourceId);
+      if (!source || !isFlowchartNodeElement(source)) {
+        this.cancelDrag();
+        return;
+      }
+      const point = viewportCoordsToSceneCoords(move, this.app.state);
+      const horizontal = direction === "left" || direction === "right";
+      const centerOffset = horizontal ? source.width / 2 : source.height / 2;
+      const gap = Math.max(
+        40,
+        direction === "right"
+          ? point.x - (source.x + source.width) - centerOffset
+          : direction === "left"
+          ? source.x - point.x - centerOffset
+          : direction === "down"
+          ? point.y - (source.y + source.height) - centerOffset
+          : source.y - point.y - centerOffset,
+      );
+      const placement: FlowchartPlacement = {
+        gap,
+        crossCenter: horizontal ? point.y : point.x,
+      };
+      // The creator records arrow bindings on its input while building the
+      // preview. Regenerate using a detached copy so every pointer movement,
+      // Escape, and pointercancel leaves the original scene untouched.
+      this.dragCreator.clear();
+      this.dragCreator.createNodes(
+        { ...source, boundElements: source.boundElements?.slice() ?? null },
+        this.app.state,
+        direction,
+        this.app.scene,
+        placement,
+      );
+      this.app.triggerRender(true);
+    };
+    const onUp = (up: PointerEvent) => {
+      if (up.pointerId !== this.dragSession?.pointerId) {
+        return;
+      }
+      onMove(up);
+      if (!this.dragSession) {
+        return;
+      }
+      const source = this.app.scene
+        .getNonDeletedElementsMap()
+        .get(this.dragSession.sourceId);
+      const nodes = this.dragCreator.pendingNodes;
+      this.cancelDrag();
+      if (!source || !isFlowchartNodeElement(source) || !nodes?.length) {
+        return;
+      }
+      const arrows = nodes.filter((item) => item.type === "arrow");
+      this.app.scene.mutateElement(source, {
+        boundElements: [
+          ...(source.boundElements ?? []),
+          ...arrows.map((arrow) => ({ id: arrow.id, type: "arrow" as const })),
+        ],
+      });
+      this.app.insertNewElements(nodes);
+      this.selectAndReveal(nodes[0]);
+      this.captureUpdate();
+    };
+    const onCancel = (cancel: PointerEvent) => {
+      if (cancel.pointerId === this.dragSession?.pointerId) {
+        this.cancelDrag();
+      }
+    };
+    const onKeyDown = (key: KeyboardEvent) => {
+      if (key.key === KEYS.ESCAPE) {
+        key.preventDefault();
+        key.stopImmediatePropagation();
+        this.cancelDrag();
+      }
+    };
+    const onBlur = () => this.cancelDrag();
+
+    const window = this.app.ownerWindow;
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onCancel);
+    window.addEventListener("keydown", onKeyDown, true);
+    window.addEventListener("blur", onBlur);
+    this.dragCleanup = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onCancel);
+      window.removeEventListener("keydown", onKeyDown, true);
+      window.removeEventListener("blur", onBlur);
+    };
+  };
+
+  private dragCleanup: (() => void) | null = null;
+
+  private cancelDrag = () => {
+    this.dragCleanup?.();
+    this.dragCleanup = null;
+    this.dragSession = null;
+    if (this.dragCreator.isCreatingChart) {
+      this.dragCreator.clear();
+      this.app.triggerRender(true);
+    }
   };
 
   handleKeyEvent = (event: React.KeyboardEvent | KeyboardEvent): boolean => {

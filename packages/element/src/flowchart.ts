@@ -53,6 +53,10 @@ import {
 import type { Scene } from "./Scene";
 
 export type LinkDirection = "up" | "right" | "down" | "left";
+export type FlowchartPlacement = {
+  gap: number;
+  crossCenter: number;
+};
 
 const VERTICAL_OFFSET = 100;
 const HORIZONTAL_OFFSET = 100;
@@ -164,12 +168,14 @@ const placeCluster = (
   count: number,
   obstacles: readonly Bounds[],
   stickyCrossStart: number | null,
+  placement?: FlowchartPlacement,
 ): { positions: { x: number; y: number }[]; crossStart: number } => {
   const horizontal = direction === "left" || direction === "right";
   // INSIGHT: new nodes copy the parent's dimensions
   const nodePrimarySize = horizontal ? parent.width : parent.height;
   const nodeCrossSize = horizontal ? parent.height : parent.width;
-  const primaryGap = horizontal ? HORIZONTAL_OFFSET : VERTICAL_OFFSET;
+  const primaryGap =
+    placement?.gap ?? (horizontal ? HORIZONTAL_OFFSET : VERTICAL_OFFSET);
   const crossGap = horizontal ? VERTICAL_OFFSET : HORIZONTAL_OFFSET;
 
   const parentPrimaryStart = horizontal ? parent.x : parent.y;
@@ -214,7 +220,7 @@ const placeCluster = (
   const crossStart =
     anchoredStart ??
     findNearestFreeSlot(
-      parentCrossCenter - clusterCrossSize / 2,
+      (placement?.crossCenter ?? parentCrossCenter) - clusterCrossSize / 2,
       clusterCrossSize,
       occupied,
     );
@@ -276,6 +282,7 @@ export const addNewNodes = (
   scene: Scene,
   numberOfNodes: number,
   stickyCrossStart: number | null = null,
+  placement?: FlowchartPlacement,
 ) => {
   const elementsMap = scene.getNonDeletedElementsMap();
   const obstacles = getConnectedFlowchartNodes(startNode, elementsMap).map(
@@ -288,6 +295,7 @@ export const addNewNodes = (
     numberOfNodes,
     obstacles,
     stickyCrossStart,
+    placement,
   );
 
   const nodes: NonDeletedExcalidrawElement[] = [];
@@ -685,6 +693,7 @@ export class FlowChartCreator {
     appState: AppState,
     direction: LinkDirection,
     scene: Scene,
+    placement?: FlowchartPlacement,
   ) {
     const elementsMap = scene.getNonDeletedElementsMap();
 
@@ -702,6 +711,7 @@ export class FlowChartCreator {
       scene,
       this.numberOfNodes,
       this.clusterCrossStart,
+      placement,
     );
 
     this.isCreatingChart = true;
