@@ -422,6 +422,7 @@ import {
   getViewportForZoomWithScrollConstraints,
 } from "../viewport";
 import { ElementCanvasButtons } from "../components/ElementCanvasButtons";
+import { FlowchartAddStep } from "../components/FlowchartAddStep";
 import { LaserTrails } from "../laserTrails";
 import { withBatchedUpdates, withBatchedUpdatesThrottled } from "../reactUtils";
 import { isPointHittingTextAutoResizeHandle } from "../textAutoResizeHandle";
@@ -2499,6 +2500,22 @@ class App extends React.Component<AppProps, AppState> {
                             ]}
                           />
                           {this.isDefaultUIEnabled() && <CursorHint />}
+                          {this.isDefaultUIEnabled() &&
+                            selectedElements.length === 1 &&
+                            (firstSelectedElement.type === "rectangle" ||
+                              firstSelectedElement.type === "diamond") &&
+                            !this.state.editingTextElement &&
+                            !this.state.viewModeEnabled && (
+                              <ElementCanvasButtons
+                                element={firstSelectedElement}
+                                elementsMap={renderableElementsMap}
+                              >
+                                <FlowchartAddStep
+                                  key={firstSelectedElement.id}
+                                  onAdd={this.flowchart.addStep}
+                                />
+                              </ElementCanvasButtons>
+                            )}
                           {this.isDefaultUIEnabled() &&
                             selectedElements.length === 1 &&
                             this.state.openDialog?.name !==

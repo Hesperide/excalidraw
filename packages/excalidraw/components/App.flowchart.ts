@@ -50,6 +50,44 @@ export class AppFlowchart {
     this.navigator.clear();
   };
 
+  /** A single click uses the same placement and binding path as Ctrl/Cmd+Arrow. */
+  addStep = (direction: LinkDirection) => {
+    const selected = getSelectedElements(
+      this.app.scene.getNonDeletedElementsMap(),
+      this.app.state,
+    );
+    if (
+      selected.length !== 1 ||
+      (selected[0].type !== "rectangle" && selected[0].type !== "diamond")
+    ) {
+      return;
+    }
+
+    this.creator.clear();
+    this.creator.createNodes(
+      selected[0],
+      this.app.state,
+      direction,
+      this.app.scene,
+    );
+    const nodes = this.creator.pendingNodes ?? [];
+    this.creator.clear();
+    if (!nodes.length) {
+      return;
+    }
+
+    this.app.insertNewElements(nodes);
+    this.selectAndReveal(nodes[0]);
+    if (isFlowchartNodeElement(nodes[0])) {
+      this.app.startTextEditing({
+        sceneX: nodes[0].x + nodes[0].width / 2,
+        sceneY: nodes[0].y + nodes[0].height / 2,
+        container: nodes[0],
+      });
+    }
+    this.captureUpdate();
+  };
+
   handleKeyEvent = (event: React.KeyboardEvent | KeyboardEvent): boolean => {
     const operation = this.resolveKeyboardEventToOperation(event);
 
