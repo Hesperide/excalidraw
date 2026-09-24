@@ -1,6 +1,7 @@
 import { KEYS, reseed } from "@excalidraw/common";
 
 import { Excalidraw } from "@excalidraw/excalidraw";
+import { isArrowElement } from "@excalidraw/element";
 
 import { API } from "@excalidraw/excalidraw/tests/helpers/api";
 import { UI, Keyboard, Pointer } from "@excalidraw/excalidraw/tests/helpers/ui";
@@ -8,6 +9,7 @@ import {
   render,
   unmountComponent,
 } from "@excalidraw/excalidraw/tests/test-utils";
+import { fireEvent, screen } from "@testing-library/react";
 
 import type { NonDeletedExcalidrawElement } from "@excalidraw/element/types";
 
@@ -43,6 +45,89 @@ describe("flow chart creation", () => {
 
     API.setElements([rectangle]);
     API.setSelectedElements([rectangle]);
+  });
+
+  it("shows directional controls for a selected rectangle", () => {
+    expect(
+      screen.getByRole("button", { name: "Create node above" }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Create node to the right" }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Create node below" }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Create node to the left" }),
+    ).toBeTruthy();
+  });
+
+  it("previews and commits a connected node from a directional control", () => {
+    const rightControl = screen.getByRole("button", {
+      name: "Create node to the right",
+    });
+
+    fireEvent.pointerDown(rightControl, {
+      pointerId: 1,
+      pointerType: "mouse",
+    });
+
+    expect(h.app.flowchart.pendingNodes?.length).toBe(2);
+    expect(h.elements.length).toBe(1);
+
+    const initialPendingNode = h.app.flowchart.pendingNodes?.find(
+      (el) => el.type === "rectangle",
+    );
+    const initialPendingArrow =
+      h.app.flowchart.pendingNodes?.find(isArrowElement);
+    expect(initialPendingNode).toBeTruthy();
+    expect(initialPendingArrow).toBeTruthy();
+
+    fireEvent.pointerMove(rightControl, {
+      pointerId: 1,
+      pointerType: "mouse",
+      clientX: 200,
+      clientY: 100,
+      buttons: 1,
+    });
+
+    const movedPendingNode = h.app.flowchart.pendingNodes?.find(
+      (el) => el.type === "rectangle",
+    );
+    const movedPendingArrow =
+      h.app.flowchart.pendingNodes?.find(isArrowElement);
+    expect(movedPendingNode?.x).not.toBe(initialPendingNode?.x);
+    expect(movedPendingNode?.y).not.toBe(initialPendingNode?.y);
+    expect(movedPendingArrow?.points).not.toEqual(initialPendingArrow?.points);
+    expect(movedPendingArrow?.endBinding?.elementId).toBe(movedPendingNode?.id);
+    expect(h.elements.length).toBe(1);
+
+    fireEvent.pointerUp(rightControl, {
+      pointerId: 1,
+      pointerType: "mouse",
+    });
+
+    expect(h.elements.length).toBe(3);
+    expect(h.elements.filter((el) => el.type === "arrow").length).toBe(1);
+  });
+
+  it("cancels a directional preview with Escape", () => {
+    const downControl = screen.getByRole("button", {
+      name: "Create node below",
+    });
+
+    fireEvent.pointerDown(downControl, {
+      pointerId: 1,
+      pointerType: "mouse",
+    });
+    Keyboard.keyPress(KEYS.ESCAPE);
+    fireEvent.pointerUp(downControl, {
+      pointerId: 1,
+      pointerType: "mouse",
+    });
+
+    expect(h.elements.length).toBe(1);
+    expect(h.app.flowchart.pendingNodes).toBe(null);
   });
 
   // multiple at once
