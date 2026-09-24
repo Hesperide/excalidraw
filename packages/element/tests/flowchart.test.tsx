@@ -9,8 +9,9 @@ import {
   unmountComponent,
 } from "@excalidraw/excalidraw/tests/test-utils";
 
-import type { NonDeletedExcalidrawElement } from "@excalidraw/element/types";
 import { getFlowchartControlPoints } from "@excalidraw/element";
+
+import type { NonDeletedExcalidrawElement } from "@excalidraw/element/types";
 
 unmountComponent();
 
