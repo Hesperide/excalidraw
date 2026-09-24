@@ -157,6 +157,31 @@ describe("flow chart creation", () => {
     expect(secondChildNode.x).toBe(thirdChildNode.x);
   });
 
+  it("creates a connected node from the contextual add-step control", () => {
+    const initialNode = h.elements[0];
+
+    UI.clickLabeledElement("Add step");
+    UI.clickLabeledElement("Add step to the right");
+
+    expect(h.elements.filter((el) => el.type === "rectangle")).toHaveLength(2);
+    expect(h.elements.filter((el) => el.type === "arrow")).toHaveLength(1);
+
+    const child = h.elements.find(
+      (el) => el.type === "rectangle" && el.id !== initialNode.id,
+    );
+    const arrow = h.elements.find((el) => el.type === "arrow");
+
+    expect(child).toMatchObject({
+      x: initialNode.x + initialNode.width + 100,
+      y: initialNode.y,
+    });
+    expect(arrow).toMatchObject({
+      startBinding: { elementId: initialNode.id },
+      endBinding: { elementId: child?.id },
+    });
+    expect(Object.keys(h.state.selectedElementIds)).toEqual([child?.id]);
+  });
+
   // regression for #8518: additional siblings must not overlap existing ones
   it("does not overlap existing siblings when adding more children (down)", () => {
     API.clearSelection();

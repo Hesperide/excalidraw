@@ -76,16 +76,7 @@ export class AppFlowchart {
         return true;
       }
       case "committed": {
-        if (operation.nodes.length) {
-          this.app.insertNewElements(operation.nodes);
-        }
-
-        const firstNode = operation.nodes[0];
-        if (firstNode) {
-          this.selectAndReveal(firstNode);
-        }
-
-        this.captureUpdate();
+        this.commitNodes(operation.nodes);
         return true;
       }
       case "navigationEnded":
@@ -163,6 +154,48 @@ export class AppFlowchart {
     }
 
     return navigationEnded ? { type: "navigationEnded" } : { type: "none" };
+  }
+
+  /**
+   * Adds one connected node from the current selection using the same
+   * creator/binding/placement path as the keyboard flowchart shortcut.
+   */
+  addNode = (direction: LinkDirection): boolean => {
+    const { app, creator } = this;
+    const selectedElements = getSelectedElements(
+      app.scene.getNonDeletedElementsMap(),
+      app.state,
+    );
+    const [selectedElement] = selectedElements;
+
+    if (
+      selectedElements.length !== 1 ||
+      !selectedElement ||
+      selectedElement.locked ||
+      !isFlowchartNodeElement(selectedElement)
+    ) {
+      return false;
+    }
+
+    creator.clear();
+    creator.createNodes(selectedElement, app.state, direction, app.scene);
+    const nodes = creator.pendingNodes ?? [];
+    creator.clear();
+    this.commitNodes(nodes);
+    return nodes.length > 0;
+  };
+
+  private commitNodes(nodes: PendingExcalidrawElements) {
+    if (nodes.length) {
+      this.app.insertNewElements(nodes);
+    }
+
+    const firstNode = nodes[0];
+    if (firstNode) {
+      this.selectAndReveal(firstNode);
+    }
+
+    this.captureUpdate();
   }
 
   private selectAndReveal(node: NonDeletedExcalidrawElement) {
