@@ -83,9 +83,12 @@ export const FlowchartControls = ({
           direction={direction}
           label={label}
           glyph={glyph}
-          onStart={() => {
+          onStart={(event) => {
             setDragging(true);
-            flowchart.startPointerCreation(element, direction);
+            flowchart.startPointerCreation(element, direction, event);
+          }}
+          onMove={(event) => {
+            flowchart.updatePointerCreation(event);
           }}
           onCommit={() => {
             setDragging(false);
@@ -106,13 +109,15 @@ const FlowchartControl = ({
   label,
   glyph,
   onStart,
+  onMove,
   onCommit,
   onCancel,
 }: {
   direction: Direction;
   label: string;
   glyph: string;
-  onStart: () => void;
+  onStart: (event: React.PointerEvent<HTMLButtonElement>) => void;
+  onMove: (event: React.PointerEvent<HTMLButtonElement>) => void;
   onCommit: () => void;
   onCancel: () => void;
 }) => {
@@ -120,7 +125,13 @@ const FlowchartControl = ({
     event.preventDefault();
     event.stopPropagation();
     event.currentTarget.setPointerCapture?.(event.pointerId);
-    onStart();
+    onStart(event);
+  };
+
+  const onPointerMove = (event: React.PointerEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onMove(event);
   };
 
   const onPointerUp = (event: React.PointerEvent<HTMLButtonElement>) => {
@@ -136,6 +147,7 @@ const FlowchartControl = ({
       aria-label={label}
       title={`${label}. Release to place, Escape to cancel`}
       onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onCancel}
       onLostPointerCapture={onCancel}

@@ -1,4 +1,8 @@
-import { isArrowKey, KEYS } from "@excalidraw/common";
+import {
+  isArrowKey,
+  KEYS,
+  viewportCoordsToSceneCoords,
+} from "@excalidraw/common";
 
 import {
   makeNextSelectedElementIds,
@@ -27,12 +31,18 @@ type FlowchartOperation =
   | { type: "committed"; nodes: PendingExcalidrawElements }
   | { type: "navigationEnded" };
 
+type PointerCoords = Pick<PointerEvent, "clientX" | "clientY">;
+
 /**
  * Captures the App state management for the flowchart functionality.
  */
 export class AppFlowchart {
   private creator = new FlowChartCreator();
   private navigator = new FlowChartNavigator();
+  private pointerDrag: {
+    origin: { x: number; y: number };
+    nodeOrigin: { x: number; y: number };
+  } | null = null;
 
   constructor(private app: App) {}
 
@@ -47,6 +57,7 @@ export class AppFlowchart {
   startPointerCreation = (
     node: NonDeletedExcalidrawElement,
     direction: LinkDirection,
+    pointer: PointerCoords,
   ) => {
     if (!isFlowchartNodeElement(node)) {
       return;
@@ -54,11 +65,32 @@ export class AppFlowchart {
 
     this.creator.clear();
     this.creator.createNodes(node, this.app.state, direction, this.app.scene);
+    const pendingNode = this.creator.pendingNodes?.find(isFlowchartNodeElement);
+    if (pendingNode) {
+      this.pointerDrag = {
+        origin: viewportCoordsToSceneCoords(pointer, this.app.state),
+        nodeOrigin: { x: pendingNode.x, y: pendingNode.y },
+      };
+    }
     this.app.revealIfHidden(this.creator.pendingNodes ?? []);
     this.app.triggerRender(true);
   };
 
+  updatePointerCreation = (pointer: PointerCoords) => {
+    if (!this.pointerDrag) {
+      return;
+    }
+
+    const current = viewportCoordsToSceneCoords(pointer, this.app.state);
+    this.creator.updatePendingNodePosition(
+      this.pointerDrag.nodeOrigin.x + current.x - this.pointerDrag.origin.x,
+      this.pointerDrag.nodeOrigin.y + current.y - this.pointerDrag.origin.y,
+    );
+    this.app.triggerRender(true);
+  };
+
   commitPointerCreation = () => {
+    this.pointerDrag = null;
     if (!this.creator.isCreatingChart) {
       return;
     }
@@ -76,6 +108,7 @@ export class AppFlowchart {
   };
 
   cancelPointerCreation = () => {
+    this.pointerDrag = null;
     if (this.creator.isCreatingChart) {
       this.creator.clear();
       this.app.triggerRender(true);
@@ -84,6 +117,7 @@ export class AppFlowchart {
 
   /** ends any in-progress flowchart creation/navigation session */
   clear = () => {
+    this.pointerDrag = null;
     this.creator.clear();
     this.navigator.clear();
   };
@@ -140,6 +174,7 @@ export class AppFlowchart {
     if (event.type === "keydown") {
       if (event.key === KEYS.ESCAPE && creator.isCreatingChart) {
         creator.clear();
+        this.pointerDrag = null;
         return { type: "canceled" };
       }
 

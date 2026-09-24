@@ -678,6 +678,9 @@ export class FlowChartCreator {
   // cross-axis anchor of the pending cluster, so growing it keeps the
   // already-visible pending nodes in place
   private clusterCrossStart: number | null = null;
+  private startNode: NonDeleted<ExcalidrawFlowchartNodeElement> | null = null;
+  private appState: AppState | null = null;
+  private scene: Scene | null = null;
   pendingNodes: PendingExcalidrawElements | null = null;
 
   createNodes(
@@ -687,6 +690,9 @@ export class FlowChartCreator {
     scene: Scene,
   ) {
     const elementsMap = scene.getNonDeletedElementsMap();
+    this.startNode = startNode;
+    this.appState = appState;
+    this.scene = scene;
 
     if (direction !== this.direction) {
       this.numberOfNodes = 1;
@@ -736,12 +742,44 @@ export class FlowChartCreator {
     }
   }
 
+  updatePendingNodePosition(x: number, y: number) {
+    if (
+      !this.isCreatingChart ||
+      !this.startNode ||
+      !this.appState ||
+      !this.scene ||
+      !this.direction ||
+      !this.pendingNodes
+    ) {
+      return;
+    }
+
+    const pendingNode = this.pendingNodes.find(isFlowchartNodeElement);
+    if (!pendingNode) {
+      return;
+    }
+
+    const movedNode = { ...pendingNode, x, y };
+    const bindingArrow = createBindingArrow(
+      this.startNode,
+      movedNode,
+      this.direction,
+      this.appState,
+      this.scene,
+    );
+
+    this.pendingNodes = [movedNode, bindingArrow];
+  }
+
   clear() {
     this.isCreatingChart = false;
     this.pendingNodes = null;
     this.direction = null;
     this.numberOfNodes = 0;
     this.clusterCrossStart = null;
+    this.startNode = null;
+    this.appState = null;
+    this.scene = null;
   }
 }
 

@@ -1,6 +1,7 @@
 import { KEYS, reseed } from "@excalidraw/common";
 
 import { Excalidraw } from "@excalidraw/excalidraw";
+import { isArrowElement } from "@excalidraw/element";
 
 import { API } from "@excalidraw/excalidraw/tests/helpers/api";
 import { UI, Keyboard, Pointer } from "@excalidraw/excalidraw/tests/helpers/ui";
@@ -72,6 +73,33 @@ describe("flow chart creation", () => {
     });
 
     expect(h.app.flowchart.pendingNodes?.length).toBe(2);
+    expect(h.elements.length).toBe(1);
+
+    const initialPendingNode = h.app.flowchart.pendingNodes?.find(
+      (el) => el.type === "rectangle",
+    );
+    const initialPendingArrow =
+      h.app.flowchart.pendingNodes?.find(isArrowElement);
+    expect(initialPendingNode).toBeTruthy();
+    expect(initialPendingArrow).toBeTruthy();
+
+    fireEvent.pointerMove(rightControl, {
+      pointerId: 1,
+      pointerType: "mouse",
+      clientX: 200,
+      clientY: 100,
+      buttons: 1,
+    });
+
+    const movedPendingNode = h.app.flowchart.pendingNodes?.find(
+      (el) => el.type === "rectangle",
+    );
+    const movedPendingArrow =
+      h.app.flowchart.pendingNodes?.find(isArrowElement);
+    expect(movedPendingNode?.x).not.toBe(initialPendingNode?.x);
+    expect(movedPendingNode?.y).not.toBe(initialPendingNode?.y);
+    expect(movedPendingArrow?.points).not.toEqual(initialPendingArrow?.points);
+    expect(movedPendingArrow?.endBinding?.elementId).toBe(movedPendingNode?.id);
     expect(h.elements.length).toBe(1);
 
     fireEvent.pointerUp(rightControl, {
