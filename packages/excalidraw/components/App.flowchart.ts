@@ -1,10 +1,14 @@
 import { isArrowKey, KEYS } from "@excalidraw/common";
 
+import { pointFrom, type GlobalPoint } from "@excalidraw/math";
+
 import {
   makeNextSelectedElementIds,
   CaptureUpdateAction,
   FlowChartCreator,
   FlowChartNavigator,
+  addNewNodes,
+  getFlowchartControlAtPoint,
   getSelectedElements,
   isFlowchartNodeElement,
   type LinkDirection,
@@ -43,6 +47,68 @@ export class AppFlowchart {
   get isCreatingChart() {
     return this.creator.isCreatingChart;
   }
+
+  handlePointerDown = (point: { x: number; y: number }): boolean => {
+    if (
+      !this.app.isInteractionEnabled() ||
+      this.app.state.viewModeEnabled ||
+      this.app.state.activeTool.type !== "selection" ||
+      this.app.state.editingTextElement ||
+      this.app.state.selectionElement ||
+      this.app.state.newElement ||
+      this.app.state.multiElement ||
+      this.app.state.selectedLinearElement ||
+      this.app.state.isCropping ||
+      this.app.state.croppingElementId ||
+      this.app.state.isRotating ||
+      this.app.state.selectedElementsAreBeingDragged ||
+      this.app.state.activeEmbeddable ||
+      this.isCreatingChart
+    ) {
+      return false;
+    }
+
+    const selectedElements = getSelectedElements(
+      this.app.scene.getNonDeletedElementsMap(),
+      this.app.state,
+    );
+    const selectedElement = selectedElements[0];
+
+    if (
+      selectedElements.length !== 1 ||
+      !selectedElement ||
+      selectedElement.locked ||
+      (selectedElement.type !== "rectangle" &&
+        selectedElement.type !== "diamond")
+    ) {
+      return false;
+    }
+
+    const direction = getFlowchartControlAtPoint(
+      selectedElement,
+      pointFrom<GlobalPoint>(point.x, point.y),
+      this.app.state.zoom.value,
+    );
+    if (!direction) {
+      return false;
+    }
+
+    const { nodes } = addNewNodes(
+      selectedElement,
+      this.app.state,
+      direction,
+      this.app.scene,
+      1,
+    );
+    this.captureUpdate();
+    this.app.insertNewElements(nodes);
+
+    const firstNode = nodes[0];
+    if (firstNode && isFlowchartNodeElement(firstNode)) {
+      this.selectAndReveal(firstNode);
+    }
+    return true;
+  };
 
   /** ends any in-progress flowchart creation/navigation session */
   clear = () => {

@@ -4,6 +4,7 @@ import {
   clamp,
   type GlobalPoint,
   pointFrom,
+  pointDistance,
   type LocalPoint,
 } from "@excalidraw/math";
 
@@ -53,6 +54,89 @@ import {
 import type { Scene } from "./Scene";
 
 export type LinkDirection = "up" | "right" | "down" | "left";
+
+export const FLOWCHART_CONTROL_RADIUS = 9;
+export const FLOWCHART_CONTROL_OFFSET = 24;
+
+export type FlowchartControl = {
+  direction: LinkDirection;
+  point: GlobalPoint;
+};
+
+const rotateFlowchartControlPoint = (
+  point: GlobalPoint,
+  center: GlobalPoint,
+  angle: number,
+): GlobalPoint => {
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  const x = point[0] - center[0];
+  const y = point[1] - center[1];
+
+  return pointFrom<GlobalPoint>(
+    center[0] + x * cos - y * sin,
+    center[1] + x * sin + y * cos,
+  );
+};
+
+export const getFlowchartControlPoints = (
+  element: ExcalidrawFlowchartNodeElement,
+): readonly FlowchartControl[] => {
+  const center = pointFrom<GlobalPoint>(
+    element.x + element.width / 2,
+    element.y + element.height / 2,
+  );
+  const offset = FLOWCHART_CONTROL_OFFSET;
+
+  return [
+    {
+      direction: "up",
+      point: rotateFlowchartControlPoint(
+        pointFrom<GlobalPoint>(center[0], element.y - offset),
+        center,
+        element.angle,
+      ),
+    },
+    {
+      direction: "right",
+      point: rotateFlowchartControlPoint(
+        pointFrom<GlobalPoint>(element.x + element.width + offset, center[1]),
+        center,
+        element.angle,
+      ),
+    },
+    {
+      direction: "down",
+      point: rotateFlowchartControlPoint(
+        pointFrom<GlobalPoint>(center[0], element.y + element.height + offset),
+        center,
+        element.angle,
+      ),
+    },
+    {
+      direction: "left",
+      point: rotateFlowchartControlPoint(
+        pointFrom<GlobalPoint>(element.x - offset, center[1]),
+        center,
+        element.angle,
+      ),
+    },
+  ];
+};
+
+export const getFlowchartControlAtPoint = (
+  element: ExcalidrawFlowchartNodeElement,
+  point: GlobalPoint,
+  zoom = 1,
+): LinkDirection | null => {
+  const hitRadius = FLOWCHART_CONTROL_RADIUS / zoom;
+
+  return (
+    getFlowchartControlPoints(element).find(
+      (control) => pointDistance(control.point, point) <= hitRadius,
+    )?.direction ?? null
+  );
+};
 
 const VERTICAL_OFFSET = 100;
 const HORIZONTAL_OFFSET = 100;

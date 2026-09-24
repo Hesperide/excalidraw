@@ -8747,6 +8747,11 @@ class App extends React.Component<AppProps, AppState> {
 
     this.clearSelectionIfNotUsingSelection();
 
+    if (this.flowchart.handlePointerDown(scenePointer)) {
+      event.preventDefault();
+      return;
+    }
+
     if (this.handleSelectionOnPointerDown(event, pointerDownState)) {
       return;
     }

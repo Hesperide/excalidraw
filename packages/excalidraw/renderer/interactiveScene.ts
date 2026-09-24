@@ -45,7 +45,9 @@ import {
   LinearElementEditor,
   getActiveTextElement,
   getElementsInGroup,
+  getFlowchartControlPoints,
   getSelectedGroupIds,
+  isFlowchartNodeElement,
   isSelectedViaGroup,
   selectGroupsFromGivenElements,
 } from "@excalidraw/element";
@@ -1064,6 +1066,46 @@ const renderSelectionBorder = (
   context.restore();
 };
 
+const renderFlowchartControls = (
+  context: CanvasRenderingContext2D,
+  appState: InteractiveCanvasAppState,
+  element: NonDeletedExcalidrawElement,
+) => {
+  if (
+    !isFlowchartNodeElement(element) ||
+    (element.type !== "rectangle" && element.type !== "diamond") ||
+    element.locked
+  ) {
+    return;
+  }
+
+  const controlRadius = 9 / appState.zoom.value;
+  const plusRadius = 4 / appState.zoom.value;
+  const lineWidth = 1 / appState.zoom.value;
+  const strokeColor = getThemedColor("#6965db", appState.theme);
+
+  context.save();
+  context.lineWidth = lineWidth;
+  context.strokeStyle = strokeColor;
+  context.fillStyle = getThemedColor("#fff", appState.theme);
+
+  for (const { point } of getFlowchartControlPoints(element)) {
+    context.beginPath();
+    context.arc(point[0], point[1], controlRadius, 0, Math.PI * 2);
+    context.fill();
+    context.stroke();
+
+    context.beginPath();
+    context.moveTo(point[0] - plusRadius, point[1]);
+    context.lineTo(point[0] + plusRadius, point[1]);
+    context.moveTo(point[0], point[1] - plusRadius);
+    context.lineTo(point[0], point[1] + plusRadius);
+    context.stroke();
+  }
+
+  context.restore();
+};
+
 const renderFrameHighlight = (
   context: CanvasRenderingContext2D,
   appState: InteractiveCanvasAppState,
@@ -2009,6 +2051,21 @@ const _renderInteractiveScene = ({
           transformHandles,
           selectedElements[0].angle,
         );
+      }
+
+      if (
+        !appState.viewModeEnabled &&
+        !appState.editingTextElement &&
+        !appState.selectionElement &&
+        !appState.newElement &&
+        !appState.multiElement &&
+        !appState.selectedLinearElement &&
+        !appState.isCropping &&
+        !appState.croppingElementId &&
+        !appState.isRotating &&
+        !appState.activeEmbeddable
+      ) {
+        renderFlowchartControls(context, appState, selectedElements[0]);
       }
 
       if (appState.croppingElementId && !appState.isCropping) {
