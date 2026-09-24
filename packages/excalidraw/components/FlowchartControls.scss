@@ -1,0 +1,58 @@
+.excalidraw {
+  .excalidraw-flowchart-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 7.25rem;
+  }
+
+  .excalidraw-flowchart-controls__trigger,
+  .excalidraw-flowchart-controls__direction {
+    border: 0;
+    color: var(--color-on-surface);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .excalidraw-flowchart-controls__trigger {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    min-height: 2rem;
+    padding: 0 0.5rem;
+    border-radius: var(--border-radius-md);
+    background: var(--color-primary);
+    color: var(--color-gray-100);
+    font-size: 0.8125rem;
+    font-weight: 600;
+  }
+
+  .excalidraw-flowchart-controls__trigger:hover,
+  .excalidraw-flowchart-controls__trigger:focus-visible {
+    background: var(--color-brand-hover);
+  }
+
+  .excalidraw-flowchart-controls__directions {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.125rem;
+    padding: 0.125rem;
+    border-radius: var(--border-radius-md);
+    background: var(--color-surface-low);
+  }
+
+  .excalidraw-flowchart-controls__direction {
+    min-width: 1.5rem;
+    min-height: 1.5rem;
+    border-radius: var(--border-radius-sm);
+    background: transparent;
+    font-size: 1rem;
+    line-height: 1;
+  }
+
+  .excalidraw-flowchart-controls__direction:hover,
+  .excalidraw-flowchart-controls__direction:focus-visible {
+    background: var(--color-surface-high);
+  }
+}

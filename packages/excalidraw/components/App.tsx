@@ -455,6 +455,7 @@ import { AppViewport, RIGHT_SIDEBAR_WIDTH } from "./App.viewport";
 import BraveMeasureTextError from "./BraveMeasureTextError";
 import { ContextMenu, CONTEXT_MENU_SEPARATOR } from "./ContextMenu";
 import { activeEyeDropperAtom } from "./EyeDropper";
+import { FlowchartControls } from "./FlowchartControls";
 import { ViewportStatusBorder } from "./ViewportStatusFrame/ViewportStatusFrame";
 import LayerUI from "./LayerUI";
 import { ElementCanvasButton } from "./MagicButton";
@@ -2515,6 +2516,34 @@ class App extends React.Component<AppProps, AppState> {
                                   this.updateEmbedValidationStatus
                                 }
                               />
+                            )}
+                          {this.isDefaultUIEnabled() &&
+                            this.isInteractionEnabled() &&
+                            this.state.activeTool.type === "selection" &&
+                            !this.state.selectionElement &&
+                            !this.state.resizingElement &&
+                            !this.state.isRotating &&
+                            !this.state.selectedElementsAreBeingDragged &&
+                            !this.state.editingTextElement &&
+                            !this.state.editingFrame &&
+                            !this.state.openDialog &&
+                            !this.state.showHyperlinkPopup &&
+                            !this.state.activeEmbeddable &&
+                            !this.flowchart.isCreatingChart &&
+                            selectedElements.length === 1 &&
+                            (firstSelectedElement.type === "rectangle" ||
+                              firstSelectedElement.type === "diamond") &&
+                            !firstSelectedElement.locked && (
+                              <ElementCanvasButtons
+                                element={firstSelectedElement}
+                                elementsMap={renderableElementsMap}
+                              >
+                                <FlowchartControls
+                                  onAddStep={(direction) =>
+                                    this.flowchart.addNode(direction)
+                                  }
+                                />
+                              </ElementCanvasButtons>
                             )}
                           {this.isDefaultUIEnabled() &&
                             this.props.aiEnabled !== false &&
