@@ -44,6 +44,44 @@ export class AppFlowchart {
     return this.creator.isCreatingChart;
   }
 
+  startPointerCreation = (
+    node: NonDeletedExcalidrawElement,
+    direction: LinkDirection,
+  ) => {
+    if (!isFlowchartNodeElement(node)) {
+      return;
+    }
+
+    this.creator.clear();
+    this.creator.createNodes(node, this.app.state, direction, this.app.scene);
+    this.app.revealIfHidden(this.creator.pendingNodes ?? []);
+    this.app.triggerRender(true);
+  };
+
+  commitPointerCreation = () => {
+    if (!this.creator.isCreatingChart) {
+      return;
+    }
+
+    const nodes = this.creator.pendingNodes ?? [];
+    this.creator.clear();
+    if (nodes.length) {
+      this.app.insertNewElements(nodes);
+      const firstNode = nodes[0];
+      if (firstNode) {
+        this.selectAndReveal(firstNode);
+      }
+      this.captureUpdate();
+    }
+  };
+
+  cancelPointerCreation = () => {
+    if (this.creator.isCreatingChart) {
+      this.creator.clear();
+      this.app.triggerRender(true);
+    }
+  };
+
   /** ends any in-progress flowchart creation/navigation session */
   clear = () => {
     this.creator.clear();

@@ -8,6 +8,7 @@ import {
   render,
   unmountComponent,
 } from "@excalidraw/excalidraw/tests/test-utils";
+import { fireEvent, screen } from "@testing-library/react";
 
 import type { NonDeletedExcalidrawElement } from "@excalidraw/element/types";
 
@@ -43,6 +44,62 @@ describe("flow chart creation", () => {
 
     API.setElements([rectangle]);
     API.setSelectedElements([rectangle]);
+  });
+
+  it("shows directional controls for a selected rectangle", () => {
+    expect(
+      screen.getByRole("button", { name: "Create node above" }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Create node to the right" }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Create node below" }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Create node to the left" }),
+    ).toBeTruthy();
+  });
+
+  it("previews and commits a connected node from a directional control", () => {
+    const rightControl = screen.getByRole("button", {
+      name: "Create node to the right",
+    });
+
+    fireEvent.pointerDown(rightControl, {
+      pointerId: 1,
+      pointerType: "mouse",
+    });
+
+    expect(h.app.flowchart.pendingNodes?.length).toBe(2);
+    expect(h.elements.length).toBe(1);
+
+    fireEvent.pointerUp(rightControl, {
+      pointerId: 1,
+      pointerType: "mouse",
+    });
+
+    expect(h.elements.length).toBe(3);
+    expect(h.elements.filter((el) => el.type === "arrow").length).toBe(1);
+  });
+
+  it("cancels a directional preview with Escape", () => {
+    const downControl = screen.getByRole("button", {
+      name: "Create node below",
+    });
+
+    fireEvent.pointerDown(downControl, {
+      pointerId: 1,
+      pointerType: "mouse",
+    });
+    Keyboard.keyPress(KEYS.ESCAPE);
+    fireEvent.pointerUp(downControl, {
+      pointerId: 1,
+      pointerType: "mouse",
+    });
+
+    expect(h.elements.length).toBe(1);
+    expect(h.app.flowchart.pendingNodes).toBe(null);
   });
 
   // multiple at once
