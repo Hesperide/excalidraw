@@ -10,6 +10,7 @@ import {
 } from "@excalidraw/excalidraw/tests/test-utils";
 
 import type { NonDeletedExcalidrawElement } from "@excalidraw/element/types";
+import { getFlowchartControlPoints } from "@excalidraw/element";
 
 unmountComponent();
 
@@ -155,6 +156,44 @@ describe("flow chart creation", () => {
 
     expect(firstChildNode.x).toBe(secondChildNode.x);
     expect(secondChildNode.x).toBe(thirdChildNode.x);
+  });
+
+  it("creates a connected node from a directional control in one undo step", () => {
+    API.setElements([]);
+    API.clearSelection();
+    h.history.clear();
+    h.store.clear();
+
+    const parent = UI.createElement("rectangle", {
+      x: 0,
+      y: 0,
+      width: 200,
+      height: 100,
+    }).get();
+    API.setSelectedElements([parent as NonDeletedExcalidrawElement]);
+
+    const rightControl = getFlowchartControlPoints(parent).find(
+      (control) => control.direction === "right",
+    )!;
+
+    mouse.clickAt(rightControl.point[0], rightControl.point[1]);
+
+    expect(h.elements.length).toBe(3);
+    expect(h.elements.filter((el) => el.type === "rectangle").length).toBe(2);
+    expect(h.elements.filter((el) => el.type === "arrow").length).toBe(1);
+
+    const child = h.elements.find(
+      (el) => el.type === "rectangle" && el.id !== parent.id,
+    )!;
+    expect(child.x).toBe(parent.x + parent.width + 100);
+    expect(child.y).toBe(parent.y);
+    expect(h.state.selectedElementIds[child.id]).toBe(true);
+
+    Keyboard.undo();
+    expect(h.elements.filter((element) => !element.isDeleted)).toHaveLength(1);
+    expect(
+      h.elements.find((element) => element.id === parent.id)?.isDeleted,
+    ).toBe(false);
   });
 
   // regression for #8518: additional siblings must not overlap existing ones
