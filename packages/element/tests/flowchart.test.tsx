@@ -94,6 +94,36 @@ describe("flow chart creation", () => {
     ).toBeNull();
   });
 
+  it("supports diamonds and hides controls for locked elements", () => {
+    const diamond = API.createElement({
+      type: "diamond",
+      width: 200,
+      height: 100,
+    });
+    API.setElements([diamond]);
+    API.setSelectedElements([diamond]);
+    fireEvent.click(
+      GlobalTestState.renderResult.getByRole("button", {
+        name: "Add connected shape down",
+      }),
+    );
+    expect(
+      h.elements.filter((element) => element.type === "diamond"),
+    ).toHaveLength(2);
+
+    const locked = API.createElement({
+      type: "rectangle",
+      locked: true,
+    });
+    API.setElements([locked]);
+    API.setSelectedElements([locked]);
+    expect(
+      GlobalTestState.renderResult.container.querySelector(
+        ".flowchart-quick-add",
+      ),
+    ).toBeNull();
+  });
+
   // multiple at once
   it("create multiple successor nodes at once", () => {
     Keyboard.withModifierKeys({ ctrl: true }, () => {
