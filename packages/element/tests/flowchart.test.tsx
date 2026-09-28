@@ -1,15 +1,19 @@
-import { KEYS, reseed } from "@excalidraw/common";
+import { KEYS, reseed, viewportCoordsToSceneCoords } from "@excalidraw/common";
+import { isArrowElement } from "@excalidraw/element";
 
 import { Excalidraw } from "@excalidraw/excalidraw";
 
 import { API } from "@excalidraw/excalidraw/tests/helpers/api";
 import { UI, Keyboard, Pointer } from "@excalidraw/excalidraw/tests/helpers/ui";
 import {
+  fireEvent,
   render,
+  screen,
   unmountComponent,
 } from "@excalidraw/excalidraw/tests/test-utils";
 
 import type { NonDeletedExcalidrawElement } from "@excalidraw/element/types";
+import type { NormalizedZoomValue } from "@excalidraw/excalidraw/types";
 
 unmountComponent();
 
@@ -43,6 +47,141 @@ describe("flow chart creation", () => {
 
     API.setElements([rectangle]);
     API.setSelectedElements([rectangle]);
+  });
+
+  describe("drag-to-create handles", () => {
+    it("tracks pointer coordinates under zoom and scroll", () => {
+      API.setAppState({
+        zoom: { value: 2 as NormalizedZoomValue },
+        scrollX: -35,
+        scrollY: 45,
+      });
+      const handle = screen.getByRole("button", {
+        name: "Drag to add connected rectangle right",
+      });
+      const pointer = { pointerId: 5, button: 0, clientX: 700, clientY: 450 };
+      fireEvent.pointerDown(handle, pointer);
+      fireEvent.pointerMove(handle, pointer);
+      const preview = h.app.flowchart.dragPreview?.preview;
+      const point = viewportCoordsToSceneCoords(pointer, h.state);
+      expect(preview).toBeDefined();
+      expect(preview!.x + preview!.width / 2).toBeCloseTo(point.x);
+      expect(preview!.y + preview!.height / 2).toBeCloseTo(point.y);
+      fireEvent.pointerCancel(handle, pointer);
+      expect(h.elements).toHaveLength(1);
+    });
+
+    it("shows handles for a diamond but hides them for locked and multiselected nodes", () => {
+      const diamond = API.createElement({
+        type: "diamond",
+        width: 150,
+        height: 100,
+      });
+      API.setElements([diamond]);
+      API.setSelectedElements([diamond]);
+      expect(
+        screen.getAllByRole("button", {
+          name: /Drag to add connected diamond/,
+        }),
+      ).toHaveLength(4);
+      API.updateElement(diamond, { locked: true });
+      expect(
+        screen.queryByRole("button", { name: /Drag to add connected diamond/ }),
+      ).toBeNull();
+      API.updateElement(diamond, { locked: false });
+      const second = API.createElement({ type: "rectangle" });
+      API.setElements([diamond, second]);
+      API.setSelectedElements([diamond, second]);
+      expect(
+        screen.queryByRole("button", { name: /Drag to add connected diamond/ }),
+      ).toBeNull();
+    });
+
+    it("previews without changing scene bindings, then commits a connected node", () => {
+      const source = h.elements[0];
+      const handle = screen.getByRole("button", {
+        name: "Drag to add connected rectangle right",
+      });
+      const pointer = { pointerId: 1, button: 0, clientX: 0, clientY: 0 };
+      const originalBindings = source.boundElements;
+      fireEvent.pointerDown(handle, pointer);
+      fireEvent.pointerMove(handle, { ...pointer, clientX: 600, clientY: 300 });
+
+      expect(h.elements).toHaveLength(1);
+      expect(source.boundElements).toEqual(originalBindings);
+      expect(h.app.flowchart.dragPreview?.preview.type).toBe("rectangle");
+
+      fireEvent.pointerUp(handle, { ...pointer, clientX: 600, clientY: 300 });
+      expect(h.app.flowchart.dragPreview).toBeUndefined();
+      expect(h.elements).toHaveLength(3);
+      const arrow = h.elements.find(isArrowElement);
+      const child = h.elements.find(
+        (element) => element.type === "rectangle" && element.id !== source.id,
+      );
+      expect(arrow?.startBinding?.elementId).toBe(source.id);
+      expect(arrow?.endBinding?.elementId).toBe(child?.id);
+      expect(source.boundElements).toContainEqual({
+        id: arrow?.id,
+        type: "arrow",
+      });
+      Keyboard.undo();
+      expect(
+        h.elements.some(
+          (element) => element.id === child?.id && !element.isDeleted,
+        ),
+      ).toBe(false);
+      expect(
+        h.elements.some(
+          (element) => element.id === arrow?.id && !element.isDeleted,
+        ),
+      ).toBe(false);
+    });
+
+    it("cancels on Escape or pointer cancellation without binding the source", () => {
+      const source = h.elements[0];
+      const handle = screen.getByRole("button", {
+        name: "Drag to add connected rectangle down",
+      });
+      const pointer = { pointerId: 2, button: 0, clientX: 0, clientY: 0 };
+      fireEvent.pointerDown(handle, pointer);
+      fireEvent.pointerMove(handle, { ...pointer, clientX: 300, clientY: 450 });
+      Keyboard.keyPress(KEYS.ESCAPE);
+      expect(h.app.flowchart.dragPreview).toBeUndefined();
+      fireEvent.pointerUp(handle, pointer);
+      expect(h.elements).toHaveLength(1);
+      expect(source.boundElements).toBeNull();
+
+      fireEvent.pointerDown(handle, pointer);
+      fireEvent.pointerCancel(handle, pointer);
+      expect(h.app.flowchart.dragPreview).toBeUndefined();
+      expect(h.elements).toHaveLength(1);
+      expect(source.boundElements).toBeNull();
+    });
+
+    it("does not add an undo entry when canceling a later drag", () => {
+      const handle = screen.getByRole("button", {
+        name: "Drag to add connected rectangle right",
+      });
+      const pointer = { pointerId: 3, button: 0, clientX: 500, clientY: 300 };
+      fireEvent.pointerDown(handle, pointer);
+      fireEvent.pointerUp(handle, pointer);
+      const beforeCancel = API.getUndoStack().length;
+      const child = h.elements.find(
+        (element) =>
+          element.type === "rectangle" && element.id !== h.elements[0].id,
+      );
+      fireEvent.pointerDown(handle, pointer);
+      Keyboard.keyPress(KEYS.ESCAPE);
+      // Pointer-up may still arrive after Escape releases capture.
+      fireEvent.pointerUp(handle, pointer);
+      expect(API.getUndoStack().length).toBe(beforeCancel);
+      Keyboard.undo();
+      expect(
+        h.elements.some(
+          (element) => element.id === child?.id && !element.isDeleted,
+        ),
+      ).toBe(false);
+    });
   });
 
   // multiple at once
