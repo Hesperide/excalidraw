@@ -44,6 +44,43 @@ export class AppFlowchart {
     return this.creator.isCreatingChart;
   }
 
+  /** Commits a single connected node from the current selection. */
+  addStep = (direction: LinkDirection): boolean => {
+    const { app } = this;
+    if (
+      app.state.viewModeEnabled ||
+      app.state.activeTool.type !== "selection" ||
+      app.state.editingTextElement ||
+      this.creator.isCreatingChart
+    ) {
+      return false;
+    }
+
+    const selected = getSelectedElements(
+      app.scene.getNonDeletedElementsMap(),
+      app.state,
+    );
+    if (
+      selected.length !== 1 ||
+      !["rectangle", "diamond"].includes(selected[0].type) ||
+      selected[0].locked ||
+      !isFlowchartNodeElement(selected[0])
+    ) {
+      return false;
+    }
+
+    this.creator.createNodes(selected[0], app.state, direction, app.scene);
+    const nodes = this.creator.pendingNodes ?? [];
+    this.creator.clear();
+    if (!nodes.length) {
+      return false;
+    }
+    app.insertNewElements(nodes);
+    this.selectAndReveal(nodes[0]);
+    this.captureUpdate();
+    return true;
+  };
+
   /** ends any in-progress flowchart creation/navigation session */
   clear = () => {
     this.creator.clear();
