@@ -422,6 +422,7 @@ import {
   getViewportForZoomWithScrollConstraints,
 } from "../viewport";
 import { ElementCanvasButtons } from "../components/ElementCanvasButtons";
+
 import { LaserTrails } from "../laserTrails";
 import { withBatchedUpdates, withBatchedUpdatesThrottled } from "../reactUtils";
 import { isPointHittingTextAutoResizeHandle } from "../textAutoResizeHandle";
@@ -437,6 +438,8 @@ import {
   getColorTargetAppStateUpdates,
   resolveColorTarget,
 } from "../actions/colorTargets";
+
+import { FlowchartQuickAdd } from "./FlowchartQuickAdd";
 
 import ConvertElementTypePopup, {
   getConversionTypeFromElements,
@@ -2696,6 +2699,33 @@ class App extends React.Component<AppProps, AppState> {
                             onPointerDown={this.handleCanvasPointerDown}
                             onDoubleClick={this.handleCanvasDoubleClick}
                           />
+                          {this.isDefaultUIEnabled() &&
+                            this.isInteractionEnabled() &&
+                            !this.state.viewModeEnabled &&
+                            this.state.activeTool.type === "selection" &&
+                            !this.state.contextMenu &&
+                            !this.state.openDialog &&
+                            !this.state.editingTextElement &&
+                            !this.state.newElement &&
+                            !this.state.resizingElement &&
+                            !this.state.isRotating &&
+                            !this.state.selectedElementsAreBeingDragged &&
+                            selectedElements.length === 1 &&
+                            (firstSelectedElement.type === "rectangle" ||
+                              firstSelectedElement.type === "diamond") &&
+                            !firstSelectedElement.locked && (
+                              <FlowchartQuickAdd
+                                element={firstSelectedElement}
+                                elementsMap={renderableElementsMap}
+                                appState={this.state}
+                                onCreate={(direction) =>
+                                  this.flowchart.createConnectedNode(
+                                    firstSelectedElement,
+                                    direction,
+                                  )
+                                }
+                              />
+                            )}
                           {this.props.viewportStatusFrame?.border &&
                             this.editorInterface.formFactor === "phone" && (
                               <ViewportStatusBorder
