@@ -5,6 +5,8 @@ import { Excalidraw } from "@excalidraw/excalidraw";
 import { API } from "@excalidraw/excalidraw/tests/helpers/api";
 import { UI, Keyboard, Pointer } from "@excalidraw/excalidraw/tests/helpers/ui";
 import {
+  fireEvent,
+  GlobalTestState,
   render,
   unmountComponent,
 } from "@excalidraw/excalidraw/tests/test-utils";
@@ -43,6 +45,53 @@ describe("flow chart creation", () => {
 
     API.setElements([rectangle]);
     API.setSelectedElements([rectangle]);
+  });
+
+  it("offers directional controls that create and select a bound node", () => {
+    const parent = h.elements[0];
+    const buttons = GlobalTestState.renderResult.container.querySelectorAll(
+      ".flowchart-quick-add__button",
+    );
+    expect(buttons).toHaveLength(4);
+
+    fireEvent.click(
+      GlobalTestState.renderResult.getByRole("button", {
+        name: "Add connected shape right",
+      }),
+    );
+
+    expect(h.elements).toHaveLength(3);
+    const child = h.elements.find(
+      (element) => element.type === "rectangle" && element.id !== parent.id,
+    )!;
+    expect(child.x).toBe(parent.x + parent.width + 100);
+    expect(h.state.selectedElementIds[child.id]).toBe(true);
+    expect(
+      h.elements.find((element) => element.type === "arrow"),
+    ).toMatchObject({
+      startBinding: { elementId: parent.id },
+      endBinding: { elementId: child.id },
+    });
+  });
+
+  it("hides controls for multiple selection, locked shapes and view mode", () => {
+    const parent = h.elements[0] as NonDeletedExcalidrawElement;
+    const second = API.createElement({ type: "diamond" });
+    API.setElements([parent, second]);
+    API.setSelectedElements([parent, second]);
+    expect(
+      GlobalTestState.renderResult.container.querySelector(
+        ".flowchart-quick-add",
+      ),
+    ).toBeNull();
+
+    API.setSelectedElements([parent]);
+    API.setAppState({ viewModeEnabled: true });
+    expect(
+      GlobalTestState.renderResult.container.querySelector(
+        ".flowchart-quick-add",
+      ),
+    ).toBeNull();
   });
 
   // multiple at once
