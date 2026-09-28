@@ -2447,6 +2447,7 @@ class App extends React.Component<AppProps, AppState> {
                         >
                           <LayerUI
                             canvas={this.canvas}
+                            onAddFlowchartStep={this.flowchart.addStep}
                             appState={this.state}
                             defaultUIEnabled={this.isDefaultUIEnabled()}
                             zoomUIEnabled={this.isUIControlEnabled("zoom")}
