@@ -229,7 +229,7 @@ const placeCluster = (
   return { positions, crossStart };
 };
 
-const cloneFlowchartNode = (
+export const cloneFlowchartNode = (
   template: ExcalidrawFlowchartNodeElement,
   x: number,
   y: number,
@@ -305,6 +305,32 @@ export const addNewNodes = (
   }
 
   return { nodes, crossStart };
+};
+
+/** Create the final bound pair only on drop, never while previewing a drag. */
+export const createConnectedFlowchartNode = (
+  startNode: NonDeleted<ExcalidrawFlowchartNodeElement>,
+  appState: AppState,
+  direction: LinkDirection,
+  scene: Scene,
+  position: { x: number; y: number },
+): NonDeletedExcalidrawElement[] => {
+  const node = cloneFlowchartNode(startNode, position.x, position.y);
+  const arrow = createBindingArrow(startNode, node, direction, appState, scene);
+  const elementsMap = scene.getNonDeletedElementsMap();
+  if (startNode.frameId) {
+    const frame = elementsMap.get(startNode.frameId);
+    if (
+      frame &&
+      isFrameElement(frame) &&
+      (elementsAreInFrameBounds([node], frame, elementsMap) ||
+        elementOverlapsWithFrame(node, frame, elementsMap))
+    ) {
+      mutateElement(node, elementsMap, { frameId: startNode.frameId });
+      mutateElement(arrow, elementsMap, { frameId: startNode.frameId });
+    }
+  }
+  return [node, arrow];
 };
 
 const createBindingArrow = (
