@@ -1,4 +1,8 @@
-import { isArrowKey, KEYS } from "@excalidraw/common";
+import {
+  isArrowKey,
+  KEYS,
+  viewportCoordsToSceneCoords,
+} from "@excalidraw/common";
 
 import {
   makeNextSelectedElementIds,
@@ -12,6 +16,8 @@ import {
 
 import type {
   ExcalidrawElement,
+  ExcalidrawFlowchartNodeElement,
+  NonDeleted,
   NonDeletedExcalidrawElement,
 } from "@excalidraw/element/types";
 
@@ -33,6 +39,14 @@ type FlowchartOperation =
 export class AppFlowchart {
   private creator = new FlowChartCreator();
   private navigator = new FlowChartNavigator();
+  private dragToCreate: {
+    source: NonDeleted<ExcalidrawFlowchartNodeElement>;
+    direction: LinkDirection;
+    pointerId: number;
+    startX: number;
+    startY: number;
+    moved: boolean;
+  } | null = null;
 
   constructor(private app: App) {}
 
@@ -44,10 +58,123 @@ export class AppFlowchart {
     return this.creator.isCreatingChart;
   }
 
+  get isDraggingToCreate() {
+    return this.dragToCreate !== null;
+  }
+
+  get draggedSourceId() {
+    return this.dragToCreate?.source.id;
+  }
+
   /** ends any in-progress flowchart creation/navigation session */
   clear = () => {
     this.creator.clear();
     this.navigator.clear();
+    this.dragToCreate = null;
+  };
+
+  startDragToCreate = (
+    source: NonDeleted<ExcalidrawFlowchartNodeElement>,
+    direction: LinkDirection,
+    event: React.PointerEvent,
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    this.dragToCreate = {
+      source,
+      direction,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      moved: false,
+    };
+    this.creator.clear();
+    this.creator.createNodes(source, this.app.state, direction, this.app.scene);
+    this.app.triggerRender(true);
+  };
+
+  updateDragToCreate = (event: React.PointerEvent) => {
+    const drag = this.dragToCreate;
+    if (!drag || event.pointerId !== drag.pointerId) {
+      return;
+    }
+
+    if (
+      !drag.moved &&
+      Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < 8
+    ) {
+      return;
+    }
+    drag.moved = true;
+
+    const pointer = viewportCoordsToSceneCoords(event, this.app.state);
+    const gridSize =
+      this.app.state.gridModeEnabled && this.app.state.gridSize > 0
+        ? this.app.state.gridSize
+        : null;
+    const snap = (value: number) =>
+      gridSize ? Math.round(value / gridSize) * gridSize : value;
+
+    this.creator.createNodes(
+      drag.source,
+      this.app.state,
+      drag.direction,
+      this.app.scene,
+      {
+        x: snap(pointer.x - drag.source.width / 2),
+        y: snap(pointer.y - drag.source.height / 2),
+      },
+    );
+    this.app.triggerRender(true);
+  };
+
+  endDragToCreate = (event: React.PointerEvent) => {
+    const drag = this.dragToCreate;
+    if (!drag || event.pointerId !== drag.pointerId) {
+      return;
+    }
+
+    const pointer = viewportCoordsToSceneCoords(event, this.app.state);
+    const cancelPadding = 8 / this.app.state.zoom.value;
+    const releasedOverSource =
+      pointer.x >= drag.source.x - cancelPadding &&
+      pointer.x <= drag.source.x + drag.source.width + cancelPadding &&
+      pointer.y >= drag.source.y - cancelPadding &&
+      pointer.y <= drag.source.y + drag.source.height + cancelPadding;
+
+    if (drag.moved && releasedOverSource) {
+      this.cancelDragToCreate();
+      return;
+    }
+
+    if (drag.moved) {
+      this.updateDragToCreate(event);
+    } else {
+      // A click without a meaningful drag creates the usual one-gap successor.
+      this.creator.createNodes(
+        drag.source,
+        this.app.state,
+        drag.direction,
+        this.app.scene,
+      );
+    }
+
+    const nodes = this.creator.pendingNodes ?? [];
+    this.dragToCreate = null;
+    this.creator.clear();
+    this.commitNodes(nodes);
+  };
+
+  cancelDragToCreate = (pointerId?: number) => {
+    if (
+      !this.dragToCreate ||
+      (pointerId !== undefined && pointerId !== this.dragToCreate.pointerId)
+    ) {
+      return;
+    }
+    this.dragToCreate = null;
+    this.creator.clear();
+    this.app.triggerRender(true);
   };
 
   handleKeyEvent = (event: React.KeyboardEvent | KeyboardEvent): boolean => {
@@ -57,6 +184,7 @@ export class AppFlowchart {
       case "none":
         return false;
       case "canceled":
+        event.preventDefault();
         this.app.triggerRender(true);
         return true;
       case "creating":
@@ -76,16 +204,7 @@ export class AppFlowchart {
         return true;
       }
       case "committed": {
-        if (operation.nodes.length) {
-          this.app.insertNewElements(operation.nodes);
-        }
-
-        const firstNode = operation.nodes[0];
-        if (firstNode) {
-          this.selectAndReveal(firstNode);
-        }
-
-        this.captureUpdate();
+        this.commitNodes(operation.nodes);
         return true;
       }
       case "navigationEnded":
@@ -101,6 +220,10 @@ export class AppFlowchart {
 
     if (event.type === "keydown") {
       if (event.key === KEYS.ESCAPE && creator.isCreatingChart) {
+        if (this.dragToCreate) {
+          this.cancelDragToCreate();
+          return { type: "canceled" };
+        }
         creator.clear();
         return { type: "canceled" };
       }
@@ -173,6 +296,14 @@ export class AppFlowchart {
       ),
     }));
     this.app.revealIfHidden([node]);
+  }
+
+  private commitNodes(nodes: PendingExcalidrawElements) {
+    if (nodes.length) {
+      this.app.insertNewElements(nodes);
+      this.selectAndReveal(nodes[0]);
+    }
+    this.captureUpdate();
   }
 
   private captureUpdate() {
