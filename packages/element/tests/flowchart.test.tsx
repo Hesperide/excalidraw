@@ -177,13 +177,12 @@ describe("flow chart creation", () => {
       UI.clickByTitle("Add node to the right");
 
       const createdNodes = h.elements.filter(
-        (element) =>
-          element.type === "rectangle" && element.id !== source.id,
+        (element) => element.type === "rectangle" && element.id !== source.id,
       );
       expect(createdNodes).toHaveLength(2);
-      expect(
-        createdNodes.some((element) => element.id === firstNodeId),
-      ).toBe(true);
+      expect(createdNodes.some((element) => element.id === firstNodeId)).toBe(
+        true,
+      );
       expect(createdNodes[1].x).toBeGreaterThanOrEqual(
         createdNodes[0].x + createdNodes[0].width,
       );
