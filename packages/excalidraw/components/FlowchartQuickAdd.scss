@@ -22,19 +22,6 @@
     pointer-events: auto;
     transform: translate(-50%, -50%);
 
-    &--up {
-      margin-top: -25px;
-    }
-    &--right {
-      margin-left: 25px;
-    }
-    &--down {
-      margin-top: 25px;
-    }
-    &--left {
-      margin-left: -25px;
-    }
-
     &:hover,
     &:focus-visible {
       background: var(--color-primary);

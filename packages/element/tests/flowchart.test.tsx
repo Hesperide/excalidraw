@@ -69,9 +69,42 @@ describe("flow chart creation", () => {
     expect(
       h.elements.find((element) => element.type === "arrow"),
     ).toMatchObject({
+      type: "arrow",
+      elbowed: true,
       startBinding: { elementId: parent.id },
       endBinding: { elementId: child.id },
     });
+  });
+
+  it("keeps directional controls inside the viewport near its edges", () => {
+    API.clearSelection();
+    const parent = API.createElement({
+      type: "rectangle",
+      x: 900,
+      y: 900,
+      width: 200,
+      height: 100,
+    });
+    API.setElements([parent]);
+    API.setSelectedElements([parent]);
+
+    const buttons = Array.from(
+      GlobalTestState.renderResult.container.querySelectorAll<HTMLButtonElement>(
+        ".flowchart-quick-add__button",
+      ),
+    );
+    expect(buttons).toHaveLength(4);
+
+    for (const button of buttons) {
+      expect(Number.parseFloat(button.style.left)).toBeGreaterThanOrEqual(14);
+      expect(Number.parseFloat(button.style.left)).toBeLessThanOrEqual(
+        h.state.width - 14,
+      );
+      expect(Number.parseFloat(button.style.top)).toBeGreaterThanOrEqual(14);
+      expect(Number.parseFloat(button.style.top)).toBeLessThanOrEqual(
+        h.state.height - 14,
+      );
+    }
   });
 
   it("hides controls for multiple selection, locked shapes and view mode", () => {
