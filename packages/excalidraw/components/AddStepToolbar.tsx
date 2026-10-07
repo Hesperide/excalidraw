@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 
 import type { LinkDirection } from "@excalidraw/element";
 
@@ -18,7 +18,19 @@ export const AddStepToolbar = ({
 }) => {
   const [direction, setDirection] = useState<LinkDirection>("right");
   const [pickerOpen, setPickerOpen] = useState(false);
+  const directionToggleRef = useRef<HTMLButtonElement>(null);
   const icon = directions.find((item) => item.direction === direction)?.icon;
+
+  const addStep = (nextDirection: LinkDirection) => {
+    if (!onAddStep(nextDirection)) {
+      directionToggleRef.current?.focus();
+    }
+  };
+
+  const closePicker = () => {
+    setPickerOpen(false);
+    directionToggleRef.current?.focus();
+  };
 
   return (
     <div className="add-step-toolbar" role="group" aria-label="Flowchart steps">
@@ -26,13 +38,14 @@ export const AddStepToolbar = ({
         type="button"
         className="add-step-toolbar__add"
         title={`Add connected step ${direction}`}
-        onClick={() => onAddStep(direction)}
+        onClick={() => addStep(direction)}
       >
         <span aria-hidden="true">＋</span> Add step{" "}
         <span aria-hidden="true">{icon}</span>
       </button>
       <button
         type="button"
+        ref={directionToggleRef}
         className="add-step-toolbar__toggle"
         aria-label="Choose step direction"
         aria-expanded={pickerOpen}
@@ -45,6 +58,13 @@ export const AddStepToolbar = ({
           className="add-step-toolbar__directions"
           role="group"
           aria-label="Step direction"
+          onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              event.preventDefault();
+              event.stopPropagation();
+              closePicker();
+            }
+          }}
         >
           {directions.map((item) => (
             <button
@@ -55,7 +75,7 @@ export const AddStepToolbar = ({
               onClick={() => {
                 setDirection(item.direction);
                 setPickerOpen(false);
-                onAddStep(item.direction);
+                addStep(item.direction);
               }}
             >
               {item.icon}

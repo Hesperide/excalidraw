@@ -78,6 +78,7 @@ export class AppFlowchart {
     app.insertNewElements(nodes);
     this.selectAndReveal(nodes[0]);
     this.captureUpdate();
+    app.focusContainer();
     return true;
   };
 

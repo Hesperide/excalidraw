@@ -74,6 +74,38 @@ describe("flow chart creation", () => {
     expect(h.elements.filter((el) => !el.isDeleted)).toHaveLength(0);
   });
 
+  it("closes the direction picker and returns focus for label editing", () => {
+    const original = h.elements[0];
+    const toggle = screen.getByRole("button", {
+      name: "Choose step direction",
+    });
+    fireEvent.click(toggle);
+
+    const downDirection = screen.getByRole("button", {
+      name: "Add step down",
+    });
+    downDirection.focus();
+    fireEvent.keyDown(downDirection, { key: "Escape" });
+
+    expect(screen.queryByRole("button", { name: "Add step down" })).toBeNull();
+    expect(document.activeElement).toBe(toggle);
+
+    fireEvent.click(toggle);
+    fireEvent.click(screen.getByRole("button", { name: "Add step down" }));
+
+    const child = h.elements.find(
+      (el) => el.type === "rectangle" && el.id !== original.id,
+    );
+    expect(child).toBeDefined();
+    expect(h.state.selectedElementIds[child!.id]).toBe(true);
+    expect(document.activeElement).toBe(document.querySelector(".excalidraw"));
+
+    Keyboard.keyPress(KEYS.ENTER);
+    expect(h.state.editingTextElement?.containerId).toBe(child?.id);
+
+    Keyboard.keyPress(KEYS.ESCAPE);
+  });
+
   it("only offers add step for a single unlocked rectangle or diamond", () => {
     const original = h.elements[0];
     expect(

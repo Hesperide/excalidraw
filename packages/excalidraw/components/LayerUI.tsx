@@ -265,10 +265,7 @@ const LayerUI = ({
       selectedStepShapes[0].type === "diamond");
   const renderAddStepToolbar = () =>
     showAddStepToolbar ? (
-      <AddStepToolbar
-        key={selectedStepShapes[0].id}
-        onAddStep={onAddFlowchartStep}
-      />
+      <AddStepToolbar onAddStep={onAddFlowchartStep} />
     ) : null;
 
   const renderSelectedShapeActions = () => {
