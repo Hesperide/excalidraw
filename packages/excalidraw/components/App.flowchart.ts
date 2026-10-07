@@ -50,6 +50,32 @@ export class AppFlowchart {
     this.navigator.clear();
   };
 
+  /** A single, immediate creation using the same placement and binding logic
+   * as the keyboard flowchart workflow. */
+  createConnectedNode = (
+    startNode: NonDeletedExcalidrawElement,
+    direction: LinkDirection,
+  ) => {
+    if (
+      !isFlowchartNodeElement(startNode) ||
+      startNode.locked ||
+      this.app.state.viewModeEnabled
+    ) {
+      return;
+    }
+    this.creator.clear();
+    const creator = new FlowChartCreator();
+    creator.createNodes(startNode, this.app.state, direction, this.app.scene);
+    const nodes = creator.pendingNodes ?? [];
+    creator.clear();
+    if (!nodes.length) {
+      return;
+    }
+    this.app.insertNewElements(nodes);
+    this.selectAndReveal(nodes[0]);
+    this.captureUpdate();
+  };
+
   handleKeyEvent = (event: React.KeyboardEvent | KeyboardEvent): boolean => {
     const operation = this.resolveKeyboardEventToOperation(event);
 

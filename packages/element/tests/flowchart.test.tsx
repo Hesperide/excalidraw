@@ -5,6 +5,8 @@ import { Excalidraw } from "@excalidraw/excalidraw";
 import { API } from "@excalidraw/excalidraw/tests/helpers/api";
 import { UI, Keyboard, Pointer } from "@excalidraw/excalidraw/tests/helpers/ui";
 import {
+  fireEvent,
+  GlobalTestState,
   render,
   unmountComponent,
 } from "@excalidraw/excalidraw/tests/test-utils";
@@ -43,6 +45,116 @@ describe("flow chart creation", () => {
 
     API.setElements([rectangle]);
     API.setSelectedElements([rectangle]);
+  });
+
+  it("offers directional controls that create and select a bound node", () => {
+    const parent = h.elements[0];
+    const buttons = GlobalTestState.renderResult.container.querySelectorAll(
+      ".flowchart-quick-add__button",
+    );
+    expect(buttons).toHaveLength(4);
+
+    fireEvent.click(
+      GlobalTestState.renderResult.getByRole("button", {
+        name: "Add connected shape right",
+      }),
+    );
+
+    expect(h.elements).toHaveLength(3);
+    const child = h.elements.find(
+      (element) => element.type === "rectangle" && element.id !== parent.id,
+    )!;
+    expect(child.x).toBe(parent.x + parent.width + 100);
+    expect(h.state.selectedElementIds[child.id]).toBe(true);
+    expect(
+      h.elements.find((element) => element.type === "arrow"),
+    ).toMatchObject({
+      type: "arrow",
+      elbowed: true,
+      startBinding: { elementId: parent.id },
+      endBinding: { elementId: child.id },
+    });
+  });
+
+  it("keeps directional controls inside the viewport near its edges", () => {
+    API.clearSelection();
+    const parent = API.createElement({
+      type: "rectangle",
+      x: 900,
+      y: 900,
+      width: 200,
+      height: 100,
+    });
+    API.setElements([parent]);
+    API.setSelectedElements([parent]);
+
+    const buttons = Array.from(
+      GlobalTestState.renderResult.container.querySelectorAll<HTMLButtonElement>(
+        ".flowchart-quick-add__button",
+      ),
+    );
+    expect(buttons).toHaveLength(4);
+
+    for (const button of buttons) {
+      expect(Number.parseFloat(button.style.left)).toBeGreaterThanOrEqual(14);
+      expect(Number.parseFloat(button.style.left)).toBeLessThanOrEqual(
+        h.state.width - 14,
+      );
+      expect(Number.parseFloat(button.style.top)).toBeGreaterThanOrEqual(14);
+      expect(Number.parseFloat(button.style.top)).toBeLessThanOrEqual(
+        h.state.height - 14,
+      );
+    }
+  });
+
+  it("hides controls for multiple selection, locked shapes and view mode", () => {
+    const parent = h.elements[0] as NonDeletedExcalidrawElement;
+    const second = API.createElement({ type: "diamond" });
+    API.setElements([parent, second]);
+    API.setSelectedElements([parent, second]);
+    expect(
+      GlobalTestState.renderResult.container.querySelector(
+        ".flowchart-quick-add",
+      ),
+    ).toBeNull();
+
+    API.setSelectedElements([parent]);
+    API.setAppState({ viewModeEnabled: true });
+    expect(
+      GlobalTestState.renderResult.container.querySelector(
+        ".flowchart-quick-add",
+      ),
+    ).toBeNull();
+  });
+
+  it("supports diamonds and hides controls for locked elements", () => {
+    const diamond = API.createElement({
+      type: "diamond",
+      width: 200,
+      height: 100,
+    });
+    API.setElements([diamond]);
+    API.setSelectedElements([diamond]);
+    fireEvent.click(
+      GlobalTestState.renderResult.getByRole("button", {
+        name: "Add connected shape down",
+      }),
+    );
+    expect(
+      h.elements.filter((element) => element.type === "diamond"),
+    ).toHaveLength(2);
+
+    const locked = API.createElement({
+      type: "rectangle",
+      locked: true,
+    });
+    API.setElements([locked]);
+    API.setSelectedElements([locked]);
+    expect(
+      GlobalTestState.renderResult.container.querySelector(
+        ".flowchart-quick-add",
+      ),
+    ).toBeNull();
   });
 
   // multiple at once
