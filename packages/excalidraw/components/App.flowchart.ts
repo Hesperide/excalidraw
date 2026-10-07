@@ -151,7 +151,7 @@ export class AppFlowchart {
       { x: drag.preview.x, y: drag.preview.y },
     );
     this.app.insertNewElements(nodes);
-    this.selectAndReveal(nodes[0]);
+    this.selectAndReveal(nodes[0], "none");
     this.captureUpdate();
   };
 
@@ -298,14 +298,17 @@ export class AppFlowchart {
     return navigationEnded ? { type: "navigationEnded" } : { type: "none" };
   }
 
-  private selectAndReveal(node: NonDeletedExcalidrawElement) {
+  private selectAndReveal(
+    node: NonDeletedExcalidrawElement,
+    fit: "scale-down" | "none" = "scale-down",
+  ) {
     this.app.setState((prevState) => ({
       selectedElementIds: makeNextSelectedElementIds(
         { [node.id]: true },
         prevState,
       ),
     }));
-    this.app.revealIfHidden([node]);
+    this.app.revealIfHidden([node], fit);
   }
 
   private captureUpdate() {

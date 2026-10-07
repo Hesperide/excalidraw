@@ -5336,7 +5336,10 @@ class App extends React.Component<AppProps, AppState> {
   // scroll `elements` into view only if they aren't already fully visible.
   // Targets their bounds rather than the elements so it also works for
   // elements not yet committed to the canvas.
-  revealIfHidden = (elements: NonDeletedExcalidrawElement[]) => {
+  revealIfHidden = (
+    elements: NonDeletedExcalidrawElement[],
+    fit: "scale-down" | "none" = "scale-down",
+  ) => {
     if (
       !elements.length ||
       isElementCompletelyInViewport(
@@ -5359,7 +5362,7 @@ class App extends React.Component<AppProps, AppState> {
 
     this.viewport.setViewport({
       target: getCommonBounds(elements),
-      fit: "scale-down",
+      fit,
       animation: { duration: 300 },
       offsets: { ui: true },
     });

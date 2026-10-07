@@ -71,6 +71,24 @@ describe("flow chart creation", () => {
       expect(h.elements).toHaveLength(1);
     });
 
+    it("preserves zoom when revealing a dragged node", () => {
+      API.setAppState({
+        zoom: { value: 2 as NormalizedZoomValue },
+        scrollX: -35,
+        scrollY: 45,
+      });
+      const handle = screen.getByRole("button", {
+        name: "Drag to add connected rectangle right",
+      });
+      const pointer = { pointerId: 6, button: 0, clientX: 980, clientY: 500 };
+      fireEvent.pointerDown(handle, pointer);
+      fireEvent.pointerMove(handle, pointer);
+      fireEvent.pointerUp(handle, pointer);
+
+      expect(h.elements).toHaveLength(3);
+      expect(h.state.zoom.value).toBe(2);
+    });
+
     it("shows handles for a diamond but hides them for locked and multiselected nodes", () => {
       const diamond = API.createElement({
         type: "diamond",
