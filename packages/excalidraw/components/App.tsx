@@ -155,6 +155,7 @@ import {
   isMagicFrameElement,
   isTextBindableContainer,
   isElbowArrow,
+  isFlowchartNodeElement,
   isBindableElement,
   isTextElement,
   isStickyNoteElement,
@@ -236,6 +237,7 @@ import {
   Scene,
   Store,
   CaptureUpdateAction,
+  type LinkDirection,
   type ElementUpdate,
   hitElementBoundingBox,
   isLineElement,
@@ -2143,6 +2145,160 @@ class App extends React.Component<AppProps, AppState> {
     this.setState({ editingFrame: null });
   };
 
+  private renderFlowchartDragHandles = () => {
+    const selected = this.scene.getSelectedElements(this.state);
+    if (
+      !this.isInteractionEnabled() ||
+      this.state.viewModeEnabled ||
+      this.state.activeTool.type !== "selection" ||
+      this.state.editingTextElement ||
+      selected.length !== 1
+    ) {
+      return null;
+    }
+    const source = selected[0];
+    if (
+      (source.type !== "rectangle" && source.type !== "diamond") ||
+      source.locked ||
+      source.angle !== 0 ||
+      !isFlowchartNodeElement(source)
+    ) {
+      return null;
+    }
+    const directions: LinkDirection[] = ["up", "right", "down", "left"];
+    const anchors = {
+      up: { x: source.x + source.width / 2, y: source.y },
+      right: {
+        x: source.x + source.width,
+        y: source.y + source.height / 2,
+      },
+      down: {
+        x: source.x + source.width / 2,
+        y: source.y + source.height,
+      },
+      left: { x: source.x, y: source.y + source.height / 2 },
+    };
+    const drag = this.flowchart.dragPreview;
+    const preview = drag?.preview;
+    const end = preview
+      ? {
+          x:
+            preview.x +
+            (drag.direction === "right"
+              ? 0
+              : drag.direction === "left"
+              ? preview.width
+              : preview.width / 2),
+          y:
+            preview.y +
+            (drag.direction === "down"
+              ? 0
+              : drag.direction === "up"
+              ? preview.height
+              : preview.height / 2),
+        }
+      : null;
+    const startPoint = drag && anchors[drag.direction];
+    const startViewport =
+      startPoint &&
+      sceneCoordsToViewportCoords(
+        { sceneX: startPoint.x, sceneY: startPoint.y },
+        this.state,
+      );
+    const endViewport =
+      end &&
+      sceneCoordsToViewportCoords({ sceneX: end.x, sceneY: end.y }, this.state);
+
+    return (
+      <>
+        {startViewport && endViewport && (
+          <svg
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              pointerEvents: "none",
+              zIndex: 3,
+              overflow: "visible",
+            }}
+          >
+            <line
+              x1={startViewport.x - this.state.offsetLeft}
+              y1={startViewport.y - this.state.offsetTop}
+              x2={endViewport.x - this.state.offsetLeft}
+              y2={endViewport.y - this.state.offsetTop}
+              stroke={source.strokeColor}
+              strokeWidth={Math.max(1.5, source.strokeWidth)}
+              strokeDasharray="6 4"
+            />
+          </svg>
+        )}
+        {directions.map((direction) => {
+          const anchor = anchors[direction];
+          const point = sceneCoordsToViewportCoords(
+            { sceneX: anchor.x, sceneY: anchor.y },
+            this.state,
+          );
+          const distance = 21;
+          const x =
+            point.x -
+            this.state.offsetLeft +
+            (direction === "left"
+              ? -distance
+              : direction === "right"
+              ? distance
+              : 0);
+          const y =
+            point.y -
+            this.state.offsetTop +
+            (direction === "up"
+              ? -distance
+              : direction === "down"
+              ? distance
+              : 0);
+          return (
+            <button
+              key={direction}
+              type="button"
+              aria-label={`Drag to add connected ${source.type} ${direction}`}
+              title={`Drag to add connected ${source.type} ${direction}`}
+              style={{
+                position: "absolute",
+                left: x - 11,
+                top: y - 11,
+                width: 22,
+                height: 22,
+                borderRadius: "50%",
+                border: "1.5px solid #6965db",
+                background: "#fff",
+                color: "#6965db",
+                fontSize: 17,
+                lineHeight: "17px",
+                padding: 0,
+                textAlign: "center",
+                cursor: "crosshair",
+                touchAction: "none",
+                zIndex: 4,
+              }}
+              onPointerDown={(event) =>
+                this.flowchart.startDrag(event, source, direction)
+              }
+              onPointerMove={this.flowchart.moveDrag}
+              onPointerUp={this.flowchart.finishDrag}
+              onPointerCancel={this.flowchart.cancelDrag}
+              onLostPointerCapture={this.flowchart.cancelDrag}
+              onClick={(event) => event.stopPropagation()}
+            >
+              +
+            </button>
+          );
+        })}
+      </>
+    );
+  };
+
   private renderFrameNames = () => {
     if (!this.state.frameRendering.enabled || !this.state.frameRendering.name) {
       if (this.state.editingFrame) {
@@ -2696,6 +2852,7 @@ class App extends React.Component<AppProps, AppState> {
                             onPointerDown={this.handleCanvasPointerDown}
                             onDoubleClick={this.handleCanvasDoubleClick}
                           />
+                          {this.renderFlowchartDragHandles()}
                           {this.props.viewportStatusFrame?.border &&
                             this.editorInterface.formFactor === "phone" && (
                               <ViewportStatusBorder
@@ -5179,7 +5336,10 @@ class App extends React.Component<AppProps, AppState> {
   // scroll `elements` into view only if they aren't already fully visible.
   // Targets their bounds rather than the elements so it also works for
   // elements not yet committed to the canvas.
-  revealIfHidden = (elements: NonDeletedExcalidrawElement[]) => {
+  revealIfHidden = (
+    elements: NonDeletedExcalidrawElement[],
+    fit: "scale-down" | "none" = "scale-down",
+  ) => {
     if (
       !elements.length ||
       isElementCompletelyInViewport(
@@ -5202,7 +5362,7 @@ class App extends React.Component<AppProps, AppState> {
 
     this.viewport.setViewport({
       target: getCommonBounds(elements),
-      fit: "scale-down",
+      fit,
       animation: { duration: 300 },
       offsets: { ui: true },
     });

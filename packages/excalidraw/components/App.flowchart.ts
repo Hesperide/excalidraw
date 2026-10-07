@@ -1,17 +1,25 @@
-import { isArrowKey, KEYS } from "@excalidraw/common";
+import {
+  isArrowKey,
+  KEYS,
+  viewportCoordsToSceneCoords,
+} from "@excalidraw/common";
 
 import {
   makeNextSelectedElementIds,
   CaptureUpdateAction,
+  cloneFlowchartNode,
+  createConnectedFlowchartNode,
   FlowChartCreator,
   FlowChartNavigator,
   getSelectedElements,
   isFlowchartNodeElement,
+  mutateElement,
   type LinkDirection,
 } from "@excalidraw/element";
 
 import type {
   ExcalidrawElement,
+  ExcalidrawFlowchartNodeElement,
   NonDeletedExcalidrawElement,
 } from "@excalidraw/element/types";
 
@@ -33,12 +41,131 @@ type FlowchartOperation =
 export class AppFlowchart {
   private creator = new FlowChartCreator();
   private navigator = new FlowChartNavigator();
+  private drag:
+    | {
+        sourceId: string;
+        direction: LinkDirection;
+        pointerId: number;
+        handle: HTMLElement;
+        preview: NonDeletedExcalidrawElement;
+      }
+    | undefined;
 
   constructor(private app: App) {}
 
   get pendingNodes() {
-    return this.creator.pendingNodes;
+    return this.drag ? [this.drag.preview] : this.creator.pendingNodes;
   }
+
+  get dragPreview() {
+    return this.drag;
+  }
+
+  startDrag = (
+    event: React.PointerEvent<HTMLElement>,
+    source: ExcalidrawFlowchartNodeElement,
+    direction: LinkDirection,
+  ) => {
+    if (event.button !== 0 || this.drag) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    const gap = 100;
+    const position = {
+      x:
+        source.x +
+        (direction === "right"
+          ? source.width + gap
+          : direction === "left"
+          ? -source.width - gap
+          : 0),
+      y:
+        source.y +
+        (direction === "down"
+          ? source.height + gap
+          : direction === "up"
+          ? -source.height - gap
+          : 0),
+    };
+    const handle = event.currentTarget;
+    handle.setPointerCapture(event.pointerId);
+    this.drag = {
+      sourceId: source.id,
+      direction,
+      pointerId: event.pointerId,
+      handle,
+      preview: cloneFlowchartNode(source, position.x, position.y),
+    };
+    this.app.triggerRender(true);
+  };
+
+  moveDrag = (event: React.PointerEvent<HTMLElement>) => {
+    const drag = this.drag;
+    if (!drag || drag.pointerId !== event.pointerId) {
+      return;
+    }
+    const source = this.app.scene.getNonDeletedElementsMap().get(drag.sourceId);
+    if (!source || !isFlowchartNodeElement(source)) {
+      this.cancelDrag();
+      return;
+    }
+    const point = viewportCoordsToSceneCoords(event, this.app.state);
+    const { direction, preview } = drag;
+    const gap = 60;
+    const centerX =
+      direction === "right"
+        ? Math.max(point.x, source.x + source.width + gap + preview.width / 2)
+        : direction === "left"
+        ? Math.min(point.x, source.x - gap - preview.width / 2)
+        : point.x;
+    const centerY =
+      direction === "down"
+        ? Math.max(point.y, source.y + source.height + gap + preview.height / 2)
+        : direction === "up"
+        ? Math.min(point.y, source.y - gap - preview.height / 2)
+        : point.y;
+    mutateElement(preview, this.app.scene.getNonDeletedElementsMap(), {
+      x: centerX - preview.width / 2,
+      y: centerY - preview.height / 2,
+    });
+    this.app.triggerRender(true);
+  };
+
+  finishDrag = (event: React.PointerEvent<HTMLElement>) => {
+    const drag = this.drag;
+    if (!drag || drag.pointerId !== event.pointerId) {
+      return;
+    }
+    this.moveDrag(event);
+    this.cancelDrag();
+    const source = this.app.scene.getNonDeletedElementsMap().get(drag.sourceId);
+    if (!source || !isFlowchartNodeElement(source)) {
+      return;
+    }
+    const nodes = createConnectedFlowchartNode(
+      source,
+      this.app.state,
+      drag.direction,
+      this.app.scene,
+      { x: drag.preview.x, y: drag.preview.y },
+    );
+    this.app.insertNewElements(nodes);
+    this.selectAndReveal(nodes[0], "none");
+    this.captureUpdate();
+  };
+
+  cancelDrag = () => {
+    if (!this.drag) {
+      return;
+    }
+    const { handle, pointerId } = this.drag;
+    this.drag = undefined;
+    if (handle.hasPointerCapture(pointerId)) {
+      handle.releasePointerCapture(pointerId);
+    }
+    this.app.triggerRender(true);
+  };
 
   get isCreatingChart() {
     return this.creator.isCreatingChart;
@@ -46,11 +173,17 @@ export class AppFlowchart {
 
   /** ends any in-progress flowchart creation/navigation session */
   clear = () => {
+    this.cancelDrag();
     this.creator.clear();
     this.navigator.clear();
   };
 
   handleKeyEvent = (event: React.KeyboardEvent | KeyboardEvent): boolean => {
+    if (event.type === "keydown" && event.key === KEYS.ESCAPE && this.drag) {
+      event.preventDefault();
+      this.cancelDrag();
+      return true;
+    }
     const operation = this.resolveKeyboardEventToOperation(event);
 
     switch (operation.type) {
@@ -165,14 +298,17 @@ export class AppFlowchart {
     return navigationEnded ? { type: "navigationEnded" } : { type: "none" };
   }
 
-  private selectAndReveal(node: NonDeletedExcalidrawElement) {
+  private selectAndReveal(
+    node: NonDeletedExcalidrawElement,
+    fit: "scale-down" | "none" = "scale-down",
+  ) {
     this.app.setState((prevState) => ({
       selectedElementIds: makeNextSelectedElementIds(
         { [node.id]: true },
         prevState,
       ),
     }));
-    this.app.revealIfHidden([node]);
+    this.app.revealIfHidden([node], fit);
   }
 
   private captureUpdate() {
