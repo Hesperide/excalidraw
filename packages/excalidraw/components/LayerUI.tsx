@@ -16,6 +16,7 @@ import { showSelectedShapeActions } from "@excalidraw/element";
 
 import { ShapeCache } from "@excalidraw/element";
 
+import type { LinkDirection } from "@excalidraw/element";
 import type { NonDeletedExcalidrawElement } from "@excalidraw/element/types";
 
 import { actionToggleStats } from "../actions";
@@ -61,6 +62,7 @@ import { JSONExportDialog } from "./JSONExportDialog";
 import { LaserPointerButton } from "./LaserPointerButton";
 import { Toast } from "./Toast";
 import { Toolbar } from "./Toolbar";
+import { AddStepToolbar } from "./AddStepToolbar";
 import {
   ViewportStatusBadge,
   ViewportStatusBorder,
@@ -82,6 +84,7 @@ import type {
 } from "../types";
 
 interface LayerUIProps {
+  onAddFlowchartStep: (direction: LinkDirection) => boolean;
   actionManager: ActionManager;
   appState: UIAppState;
   files: BinaryFiles;
@@ -145,6 +148,7 @@ const DefaultOverwriteConfirmDialog = () => {
 };
 
 const LayerUI = ({
+  onAddFlowchartStep,
   actionManager,
   appState,
   files,
@@ -246,6 +250,24 @@ const LayerUI = ({
     </div>
   );
 
+  const selectedStepShapes = elements.filter(
+    (element) => appState.selectedElementIds[element.id],
+  );
+  const showAddStepToolbar =
+    defaultUIEnabled &&
+    !appState.viewModeEnabled &&
+    !appState.isLoading &&
+    !appState.editingTextElement &&
+    appState.activeTool.type === "selection" &&
+    selectedStepShapes.length === 1 &&
+    !selectedStepShapes[0].locked &&
+    (selectedStepShapes[0].type === "rectangle" ||
+      selectedStepShapes[0].type === "diamond");
+  const renderAddStepToolbar = () =>
+    showAddStepToolbar ? (
+      <AddStepToolbar onAddStep={onAddFlowchartStep} />
+    ) : null;
+
   const renderSelectedShapeActions = () => {
     return (
       <Section
@@ -266,6 +288,7 @@ const LayerUI = ({
               maxHeight: `${appState.height - 166}px`,
             }}
           >
+            {renderAddStepToolbar()}
             <CompactShapeActions
               appState={appState}
               elementsMap={app.scene.getNonDeletedElementsMap()}
@@ -286,6 +309,7 @@ const LayerUI = ({
             data-viewport-ui="side"
             data-viewport-ui-name="stylesPanel"
           >
+            {renderAddStepToolbar()}
             <SelectedShapeActions
               appState={appState}
               elementsMap={app.scene.getNonDeletedElementsMap()}

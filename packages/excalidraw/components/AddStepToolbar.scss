@@ -1,0 +1,57 @@
+.excalidraw {
+  .add-step-toolbar {
+    position: relative;
+    display: flex;
+    align-self: flex-start;
+    margin-bottom: 8px;
+    padding: 3px;
+    border-radius: 10px;
+    background: var(--island-bg-color);
+    box-shadow: var(--shadow-island);
+    pointer-events: var(--ui-pointerEvents);
+    font: 500 13px var(--ui-font);
+
+    button {
+      border: 0;
+      border-radius: 7px;
+      background: transparent;
+      color: var(--text-primary-color);
+      cursor: pointer;
+      font: inherit;
+      min-height: 32px;
+      padding: 4px 9px;
+
+      &:hover,
+      &:focus-visible {
+        background: var(--button-hover-bg);
+      }
+      &:focus-visible {
+        outline: 2px solid var(--color-primary);
+      }
+    }
+
+    &__add {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+    }
+
+    &__toggle {
+      border-left: 1px solid var(--default-border-color) !important;
+    }
+
+    &__directions {
+      position: absolute;
+      z-index: 10;
+      top: calc(100% + 4px);
+      left: 0;
+      display: flex;
+      gap: 2px;
+      padding: 3px;
+      border-radius: 10px;
+      background: var(--island-bg-color);
+      box-shadow: var(--shadow-island);
+    }
+  }
+}

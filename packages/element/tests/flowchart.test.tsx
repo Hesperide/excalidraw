@@ -1,4 +1,5 @@
 import { KEYS, reseed } from "@excalidraw/common";
+import { fireEvent, screen } from "@testing-library/react";
 
 import { Excalidraw } from "@excalidraw/excalidraw";
 
@@ -43,6 +44,103 @@ describe("flow chart creation", () => {
 
     API.setElements([rectangle]);
     API.setSelectedElements([rectangle]);
+  });
+
+  it("adds a connected step through the toolbar and keeps the new node selected", () => {
+    const original = h.elements[0];
+    fireEvent.click(
+      screen.getByRole("button", { name: "Choose step direction" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Add step down" }));
+
+    expect(h.elements).toHaveLength(3);
+    const child = h.elements.find(
+      (el) => el.type === "rectangle" && el.id !== original.id,
+    );
+    const arrow = h.elements.find((el) => el.type === "arrow");
+    expect(child).toBeDefined();
+    expect(child!.y).toBeGreaterThan(original.y + original.height);
+    expect(arrow?.type === "arrow" && arrow.startBinding?.elementId).toBe(
+      original.id,
+    );
+    expect(arrow?.type === "arrow" && arrow.endBinding?.elementId).toBe(
+      child!.id,
+    );
+    expect(h.state.selectedElementIds[child!.id]).toBe(true);
+    expect(h.app.flowchart.pendingNodes).toBeNull();
+
+    Keyboard.undo();
+    // The test fixture's initial shape was inserted without a history capture.
+    expect(h.elements.filter((el) => !el.isDeleted)).toHaveLength(0);
+  });
+
+  it("closes the direction picker and returns focus for label editing", () => {
+    const original = h.elements[0];
+    const toggle = screen.getByRole("button", {
+      name: "Choose step direction",
+    });
+    fireEvent.click(toggle);
+
+    const downDirection = screen.getByRole("button", {
+      name: "Add step down",
+    });
+    downDirection.focus();
+    fireEvent.keyDown(downDirection, { key: "Escape" });
+
+    expect(screen.queryByRole("button", { name: "Add step down" })).toBeNull();
+    expect(document.activeElement).toBe(toggle);
+
+    fireEvent.click(toggle);
+    fireEvent.click(screen.getByRole("button", { name: "Add step down" }));
+
+    const child = h.elements.find(
+      (el) => el.type === "rectangle" && el.id !== original.id,
+    );
+    expect(child).toBeDefined();
+    expect(h.state.selectedElementIds[child!.id]).toBe(true);
+    expect(document.activeElement).toBe(document.querySelector(".excalidraw"));
+
+    Keyboard.keyPress(KEYS.ENTER);
+    expect(h.state.editingTextElement?.containerId).toBe(child?.id);
+
+    Keyboard.keyPress(KEYS.ESCAPE);
+  });
+
+  it("only offers add step for a single unlocked rectangle or diamond", () => {
+    const original = h.elements[0];
+    expect(
+      screen.getByRole("button", { name: "Choose step direction" }),
+    ).toBeTruthy();
+    API.setSelectedElements([]);
+    expect(
+      screen.queryByRole("button", { name: "Choose step direction" }),
+    ).toBeNull();
+    API.setSelectedElements([original as NonDeletedExcalidrawElement]);
+    const diamond = API.createElement({
+      type: "diamond",
+      width: 100,
+      height: 80,
+    });
+    API.setElements([original, diamond]);
+    API.setSelectedElements([original as NonDeletedExcalidrawElement, diamond]);
+    expect(
+      screen.queryByRole("button", { name: "Choose step direction" }),
+    ).toBeNull();
+    API.setSelectedElements([diamond]);
+    expect(
+      screen.getByRole("button", { name: "Choose step direction" }),
+    ).toBeTruthy();
+    API.setAppState({ viewModeEnabled: true });
+    expect(
+      screen.queryByRole("button", { name: "Choose step direction" }),
+    ).toBeNull();
+    API.setAppState({ viewModeEnabled: false });
+    API.setSelectedElements([diamond]);
+    expect(
+      screen.getByRole("button", { name: "Choose step direction" }),
+    ).toBeTruthy();
+    expect(h.app.flowchart.addStep("right")).toBe(true);
+    expect(h.elements.filter((el) => el.type === "diamond")).toHaveLength(2);
   });
 
   // multiple at once
