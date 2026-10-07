@@ -12,6 +12,8 @@ import {
 
 import type {
   ExcalidrawElement,
+  ExcalidrawFlowchartNodeElement,
+  NonDeleted,
   NonDeletedExcalidrawElement,
 } from "@excalidraw/element/types";
 
@@ -48,6 +50,30 @@ export class AppFlowchart {
   clear = () => {
     this.creator.clear();
     this.navigator.clear();
+  };
+
+  createNextNode = (
+    element: NonDeleted<ExcalidrawFlowchartNodeElement>,
+    direction: LinkDirection,
+  ) => {
+    this.creator.clear();
+    this.creator.createNodes(
+      element,
+      this.app.state,
+      direction,
+      this.app.scene,
+    );
+    const nodes = this.creator.pendingNodes ?? [];
+    this.creator.clear();
+    this.app.insertNewElements(nodes);
+
+    const nextNode = nodes[0];
+    if (nextNode) {
+      this.selectAndReveal(nextNode);
+    }
+
+    this.captureUpdate();
+    this.app.focusContainer();
   };
 
   handleKeyEvent = (event: React.KeyboardEvent | KeyboardEvent): boolean => {
