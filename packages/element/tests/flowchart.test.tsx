@@ -45,6 +45,152 @@ describe("flow chart creation", () => {
     API.setSelectedElements([rectangle]);
   });
 
+  describe("directional canvas buttons", () => {
+    it("shows four controls for a selected rectangle and diamond", () => {
+      expect(
+        document.querySelectorAll(".excalidraw-flowchart-buttons__button"),
+      ).toHaveLength(4);
+
+      const diamond = API.createElement({
+        type: "diamond",
+        width: 200,
+        height: 100,
+      });
+      API.setElements([diamond]);
+      API.setSelectedElements([diamond]);
+
+      expect(
+        document.querySelectorAll(".excalidraw-flowchart-buttons__button"),
+      ).toHaveLength(4);
+    });
+
+    it("hides controls for unsupported selections and transient editor states", () => {
+      const secondRectangle = API.createElement({
+        type: "rectangle",
+        x: 400,
+        width: 200,
+        height: 100,
+      });
+      API.setElements([...h.elements, secondRectangle]);
+      API.setSelectedElements([
+        h.elements[0] as NonDeletedExcalidrawElement,
+        secondRectangle,
+      ]);
+      expect(
+        document.querySelectorAll(".excalidraw-flowchart-buttons__button"),
+      ).toHaveLength(0);
+
+      const ellipse = API.createElement({
+        type: "ellipse",
+        width: 200,
+        height: 100,
+      });
+      API.setElements([ellipse]);
+      API.setSelectedElements([ellipse]);
+      expect(
+        document.querySelectorAll(".excalidraw-flowchart-buttons__button"),
+      ).toHaveLength(0);
+
+      const rectangle = API.createElement({
+        type: "rectangle",
+        width: 200,
+        height: 100,
+      });
+      const hiddenStates: Array<() => void> = [
+        () => API.setAppState({ viewModeEnabled: true }),
+        () =>
+          API.setAppState({
+            editingTextElement: API.createElement({ type: "text" }),
+          }),
+        () => API.setAppState({ selectedElementsAreBeingDragged: true }),
+        () => API.setAppState({ resizingElement: rectangle }),
+        () => API.setAppState({ isRotating: true }),
+      ];
+
+      for (const setState of hiddenStates) {
+        API.setElements([rectangle]);
+        API.setSelectedElements([rectangle]);
+        API.setAppState({
+          viewModeEnabled: false,
+          editingTextElement: null,
+          selectedElementsAreBeingDragged: false,
+          resizingElement: null,
+          isRotating: false,
+        });
+        setState();
+        expect(
+          document.querySelectorAll(".excalidraw-flowchart-buttons__button"),
+        ).toHaveLength(0);
+      }
+
+      API.setElements([rectangle]);
+      API.setSelectedElements([rectangle]);
+      UI.clickTool("rectangle");
+      expect(
+        document.querySelectorAll(".excalidraw-flowchart-buttons__button"),
+      ).toHaveLength(0);
+    });
+
+    it.each([
+      ["up", "Add node above"],
+      ["right", "Add node to the right"],
+      ["down", "Add node below"],
+      ["left", "Add node to the left"],
+    ] as const)("creates a connected, selected node %s", (direction, label) => {
+      const source = h.elements[0];
+      const undoStepsBefore = API.getUndoStack().length;
+
+      UI.clickByTitle(label);
+
+      const nextNode = h.elements.find(
+        (element) => element.type === "rectangle" && element.id !== source.id,
+      );
+      const arrow = h.elements.find((element) => element.type === "arrow");
+
+      expect(nextNode).toBeDefined();
+      expect(arrow).toMatchObject({
+        startBinding: { elementId: source.id },
+        endBinding: { elementId: nextNode?.id },
+      });
+      expect(h.state.selectedElementIds[nextNode!.id]).toBe(true);
+      expect(nextNode).toMatchObject({
+        type: "rectangle",
+        width: source.width,
+        height: source.height,
+        strokeColor: source.strokeColor,
+        backgroundColor: source.backgroundColor,
+      });
+      const expectedPosition = {
+        up: { x: source.x, y: source.y - source.height - 100 },
+        right: { x: source.x + source.width + 100, y: source.y },
+        down: { x: source.x, y: source.y + source.height + 100 },
+        left: { x: source.x - source.width - 100, y: source.y },
+      }[direction];
+      expect(nextNode).toMatchObject(expectedPosition);
+      expect(API.getUndoStack()).toHaveLength(undoStepsBefore + 1);
+    });
+
+    it("stacks repeated rightward additions without overlap", () => {
+      const source = h.elements[0];
+      UI.clickByTitle("Add node to the right");
+      const firstNodeId = Object.keys(h.state.selectedElementIds)[0];
+      UI.clickByTitle("Add node to the right");
+
+      const createdNodes = h.elements.filter(
+        (element) =>
+          element.type === "rectangle" && element.id !== source.id,
+      );
+      expect(createdNodes).toHaveLength(2);
+      expect(
+        createdNodes.some((element) => element.id === firstNodeId),
+      ).toBe(true);
+      expect(createdNodes[1].x).toBeGreaterThanOrEqual(
+        createdNodes[0].x + createdNodes[0].width,
+      );
+      expect(h.state.selectedElementIds[createdNodes[1].id]).toBe(true);
+    });
+  });
+
   // multiple at once
   it("create multiple successor nodes at once", () => {
     Keyboard.withModifierKeys({ ctrl: true }, () => {
