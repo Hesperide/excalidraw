@@ -276,19 +276,21 @@ export const addNewNodes = (
   scene: Scene,
   numberOfNodes: number,
   stickyCrossStart: number | null = null,
+  position?: { x: number; y: number },
 ) => {
   const elementsMap = scene.getNonDeletedElementsMap();
   const obstacles = getConnectedFlowchartNodes(startNode, elementsMap).map(
     (node) => aabbForElement(node, elementsMap),
   );
 
-  const { positions, crossStart } = placeCluster(
+  const { positions: defaultPositions, crossStart } = placeCluster(
     startNode,
     direction,
     numberOfNodes,
     obstacles,
     stickyCrossStart,
   );
+  const positions = position ? [position] : defaultPositions;
 
   const nodes: NonDeletedExcalidrawElement[] = [];
   for (const position of positions) {
@@ -685,10 +687,11 @@ export class FlowChartCreator {
     appState: AppState,
     direction: LinkDirection,
     scene: Scene,
+    position?: { x: number; y: number },
   ) {
     const elementsMap = scene.getNonDeletedElementsMap();
 
-    if (direction !== this.direction) {
+    if (position || direction !== this.direction) {
       this.numberOfNodes = 1;
       this.clusterCrossStart = null;
     } else {
@@ -702,6 +705,7 @@ export class FlowChartCreator {
       scene,
       this.numberOfNodes,
       this.clusterCrossStart,
+      position,
     );
 
     this.isCreatingChart = true;

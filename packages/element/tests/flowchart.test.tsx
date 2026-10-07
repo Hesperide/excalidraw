@@ -1,11 +1,13 @@
-import { KEYS, reseed } from "@excalidraw/common";
+import { KEYS, reseed, sceneCoordsToViewportCoords } from "@excalidraw/common";
 
 import { Excalidraw } from "@excalidraw/excalidraw";
 
 import { API } from "@excalidraw/excalidraw/tests/helpers/api";
 import { UI, Keyboard, Pointer } from "@excalidraw/excalidraw/tests/helpers/ui";
 import {
+  fireEvent,
   render,
+  screen,
   unmountComponent,
 } from "@excalidraw/excalidraw/tests/test-utils";
 
@@ -43,6 +45,259 @@ describe("flow chart creation", () => {
 
     API.setElements([rectangle]);
     API.setSelectedElements([rectangle]);
+  });
+
+  it("shows handles on a selected rectangle and diamond only", () => {
+    expect(screen.getByTestId("flowchart-handle-up")).toBeInTheDocument();
+
+    const diamond = API.createElement({
+      type: "diamond",
+      width: 200,
+      height: 100,
+    });
+    API.setElements([diamond]);
+    API.setSelectedElements([diamond]);
+
+    expect(screen.getByTestId("flowchart-handle-up")).toBeInTheDocument();
+
+    const ellipse = API.createElement({
+      type: "ellipse",
+      width: 200,
+      height: 100,
+    });
+    API.setElements([ellipse]);
+    API.setSelectedElements([ellipse]);
+
+    expect(screen.queryByTestId("flowchart-handle-up")).toBeNull();
+  });
+
+  it("hides handles for multi-selection and in view mode", () => {
+    const first = h.elements[0] as NonDeletedExcalidrawElement;
+    const second = API.createElement({
+      type: "diamond",
+      width: 200,
+      height: 100,
+    });
+    API.setElements([first, second]);
+    API.setSelectedElements([first, second]);
+
+    expect(screen.queryByTestId("flowchart-handle-up")).toBeNull();
+
+    API.setElements([first]);
+    API.setSelectedElements([first]);
+    API.setAppState({ viewModeEnabled: true });
+
+    expect(screen.queryByTestId("flowchart-handle-up")).toBeNull();
+  });
+
+  it("hides handles while text is being edited", () => {
+    const source = h.elements[0] as NonDeletedExcalidrawElement;
+    const text = API.createElement({ type: "text", text: "Editing" });
+    API.setElements([source, text]);
+    API.setSelectedElements([source]);
+    API.setAppState({ editingTextElement: text });
+
+    expect(screen.queryByTestId("flowchart-handle-up")).toBeNull();
+  });
+
+  it.each([
+    ["up", { x: 500, y: 40 }],
+    ["right", { x: 500, y: 400 }],
+    ["down", { x: 40, y: 500 }],
+    ["left", { x: -200, y: 200 }],
+  ] as const)(
+    "creates a style-matched connected node from the %s handle",
+    (direction, target) => {
+      const parent = h.elements[0];
+      const handle = screen.getByTestId(`flowchart-handle-${direction}`);
+      const pointerId = 4;
+      fireEvent.pointerDown(handle, {
+        pointerId,
+        clientX: 100,
+        clientY: 100,
+      });
+      const targetViewport = sceneCoordsToViewportCoords(
+        { sceneX: target.x, sceneY: target.y },
+        h.state,
+      );
+      fireEvent.pointerMove(handle, {
+        pointerId,
+        clientX: targetViewport.x,
+        clientY: targetViewport.y,
+      });
+      fireEvent.pointerUp(handle, {
+        pointerId,
+        clientX: targetViewport.x,
+        clientY: targetViewport.y,
+      });
+
+      const child = h.elements.find(
+        (element) =>
+          element.id !== parent.id &&
+          (element.type === "rectangle" || element.type === "diamond"),
+      );
+      const arrow = h.elements.find((element) => element.type === "arrow");
+
+      expect(child).toBeDefined();
+      expect(arrow).toBeDefined();
+      expect(child).toMatchObject({
+        type: parent.type,
+        width: parent.width,
+        height: parent.height,
+        strokeColor: parent.strokeColor,
+        backgroundColor: parent.backgroundColor,
+      });
+      expect(child!.x).toBeCloseTo(target.x - parent.width / 2, 5);
+      expect(child!.y).toBeCloseTo(target.y - parent.height / 2, 5);
+      expect(arrow).toMatchObject({
+        startBinding: { elementId: parent.id },
+        endBinding: { elementId: child!.id },
+      });
+      expect(h.state.selectedElementIds[child!.id]).toBe(true);
+    },
+  );
+
+  it("snaps a dragged node to the enabled grid", () => {
+    API.setAppState({ gridModeEnabled: true, gridSize: 20 });
+    const parent = h.elements[0];
+    const handle = screen.getByTestId("flowchart-handle-right");
+    const pointerId = 5;
+    fireEvent.pointerDown(handle, {
+      pointerId,
+      clientX: 100,
+      clientY: 100,
+    });
+    const targetViewport = sceneCoordsToViewportCoords(
+      { sceneX: 451, sceneY: 341 },
+      h.state,
+    );
+    fireEvent.pointerMove(handle, {
+      pointerId,
+      clientX: targetViewport.x,
+      clientY: targetViewport.y,
+    });
+    fireEvent.pointerUp(handle, {
+      pointerId,
+      clientX: targetViewport.x,
+      clientY: targetViewport.y,
+    });
+
+    const child = h.elements.find((element) => element.id !== parent.id)!;
+    expect(child.x % 20).toBe(0);
+    expect(child.y % 20).toBe(0);
+  });
+
+  it("creates the default-offset successor on a plain handle click", () => {
+    const parent = h.elements[0];
+    const handle = screen.getByTestId("flowchart-handle-right");
+    fireEvent.pointerDown(handle, {
+      pointerId: 9,
+      clientX: 100,
+      clientY: 100,
+    });
+    fireEvent.pointerUp(handle, {
+      pointerId: 9,
+      clientX: 100,
+      clientY: 100,
+    });
+
+    const child = h.elements.find((element) => element.id !== parent.id)!;
+    expect(child.x).toBe(parent.x + parent.width + 100);
+    expect(child.y).toBe(parent.y);
+  });
+
+  it("cancels a handle drag with Escape without changing the scene", () => {
+    const undoDepth = API.getUndoStack().length;
+    const handle = screen.getByTestId("flowchart-handle-right");
+    const pointerId = 6;
+    fireEvent.pointerDown(handle, {
+      pointerId,
+      clientX: 100,
+      clientY: 100,
+    });
+    const targetViewport = sceneCoordsToViewportCoords(
+      { sceneX: 500, sceneY: 300 },
+      h.state,
+    );
+    fireEvent.pointerMove(handle, {
+      pointerId,
+      clientX: targetViewport.x,
+      clientY: targetViewport.y,
+    });
+
+    Keyboard.keyPress(KEYS.ESCAPE);
+    fireEvent.pointerUp(handle, {
+      pointerId,
+      clientX: targetViewport.x,
+      clientY: targetViewport.y,
+    });
+
+    expect(h.elements).toHaveLength(1);
+    expect(API.getUndoStack()).toHaveLength(undoDepth);
+  });
+
+  it("cancels when a dragged handle is released back over its source", () => {
+    const undoDepth = API.getUndoStack().length;
+    const parent = h.elements[0];
+    const handle = screen.getByTestId("flowchart-handle-right");
+    const pointerId = 7;
+    fireEvent.pointerDown(handle, {
+      pointerId,
+      clientX: 100,
+      clientY: 100,
+    });
+    const away = sceneCoordsToViewportCoords(
+      { sceneX: 500, sceneY: 300 },
+      h.state,
+    );
+    fireEvent.pointerMove(handle, {
+      pointerId,
+      clientX: away.x,
+      clientY: away.y,
+    });
+    const sourceCenter = sceneCoordsToViewportCoords(
+      {
+        sceneX: parent.x + parent.width / 2,
+        sceneY: parent.y + parent.height / 2,
+      },
+      h.state,
+    );
+    fireEvent.pointerUp(handle, {
+      pointerId,
+      clientX: sourceCenter.x,
+      clientY: sourceCenter.y,
+    });
+
+    expect(h.elements).toHaveLength(1);
+    expect(API.getUndoStack()).toHaveLength(undoDepth);
+  });
+
+  it("captures a created node and its arrow as one undo step", () => {
+    const undoDepth = API.getUndoStack().length;
+    const handle = screen.getByTestId("flowchart-handle-right");
+    const pointerId = 8;
+    fireEvent.pointerDown(handle, {
+      pointerId,
+      clientX: 100,
+      clientY: 100,
+    });
+    const targetViewport = sceneCoordsToViewportCoords(
+      { sceneX: 500, sceneY: 300 },
+      h.state,
+    );
+    fireEvent.pointerMove(handle, {
+      pointerId,
+      clientX: targetViewport.x,
+      clientY: targetViewport.y,
+    });
+    fireEvent.pointerUp(handle, {
+      pointerId,
+      clientX: targetViewport.x,
+      clientY: targetViewport.y,
+    });
+
+    expect(h.elements).toHaveLength(3);
+    expect(API.getUndoStack()).toHaveLength(undoDepth + 1);
   });
 
   // multiple at once

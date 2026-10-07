@@ -158,6 +158,7 @@ import {
   isBindableElement,
   isTextElement,
   isStickyNoteElement,
+  isFlowchartNodeElement,
   getNormalizedDimensions,
   isElementCompletelyInViewport,
   isElementInViewport,
@@ -451,6 +452,7 @@ import { AppToolDrag, TOOL_DRAG_PREVIEW_OPACITY } from "./App.toolDrag";
 import { AppCursor } from "./App.cursor";
 import { AppDrawShape } from "./App.drawshape";
 import { AppFlowchart } from "./App.flowchart";
+import { FlowchartHandles } from "./FlowchartHandles";
 import { AppViewport, RIGHT_SIDEBAR_WIDTH } from "./App.viewport";
 import BraveMeasureTextError from "./BraveMeasureTextError";
 import { ContextMenu, CONTEXT_MENU_SEPARATOR } from "./ContextMenu";
@@ -2369,6 +2371,26 @@ class App extends React.Component<AppProps, AppState> {
 
     const showShapeSwitchPanel =
       editorJotaiStore.get(convertElementTypePopupAtom)?.type === "panel";
+    const flowchartHandleSource =
+      selectedElements.length === 1 &&
+      isFlowchartNodeElement(selectedElements[0]) &&
+      ["rectangle", "diamond"].includes(selectedElements[0].type)
+        ? selectedElements[0]
+        : null;
+    const showFlowchartHandles =
+      flowchartHandleSource &&
+      this.isDefaultUIEnabled() &&
+      this.isInteractionEnabled() &&
+      !this.state.viewModeEnabled &&
+      this.state.activeTool.type === "selection" &&
+      !this.state.editingTextElement &&
+      !this.state.selectedElementsAreBeingDragged &&
+      !this.state.resizingElement &&
+      !this.state.isRotating &&
+      !this.state.newElement &&
+      !this.state.selectionElement &&
+      (!this.flowchart.isDraggingToCreate ||
+        this.flowchart.draggedSourceId === flowchartHandleSource.id);
 
     return (
       <div
@@ -2696,6 +2718,13 @@ class App extends React.Component<AppProps, AppState> {
                             onPointerDown={this.handleCanvasPointerDown}
                             onDoubleClick={this.handleCanvasDoubleClick}
                           />
+                          {showFlowchartHandles && (
+                            <FlowchartHandles
+                              app={this}
+                              element={flowchartHandleSource}
+                              dragging={this.flowchart.isDraggingToCreate}
+                            />
+                          )}
                           {this.props.viewportStatusFrame?.border &&
                             this.editorInterface.formFactor === "phone" && (
                               <ViewportStatusBorder
