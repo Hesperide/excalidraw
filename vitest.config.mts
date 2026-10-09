@@ -1,6 +1,6 @@
 import path from "path";
 
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 
 export default defineConfig({
   resolve: {
@@ -80,6 +80,8 @@ export default defineConfig({
       hooks: "parallel",
     },
     setupFiles: ["./setupTests.ts"],
+    // The development server uses native Node APIs, not the editor DOM setup.
+    exclude: [...configDefaults.exclude, "excalidraw-app/dev/**"],
     globals: true,
     environment: "jsdom",
     // don't list skipped tests in the failure tree — keeps output readable
