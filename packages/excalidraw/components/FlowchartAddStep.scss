@@ -1,0 +1,41 @@
+.excalidraw .flowchart-add-step {
+  position: absolute;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: auto;
+
+  button {
+    min-height: 34px;
+    padding: 6px 12px;
+    border: 1px solid var(--default-border-color);
+    border-radius: 8px;
+    background: var(--island-bg-color);
+    color: var(--text-primary-color);
+    box-shadow: var(--shadow-island);
+    font: inherit;
+    cursor: pointer;
+
+    &:hover {
+      background: var(--button-hover-bg);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--color-primary);
+      outline-offset: 2px;
+    }
+  }
+
+  &__directions {
+    display: flex;
+    gap: 4px;
+
+    button {
+      width: 40px;
+      padding: 6px;
+      font-size: 18px;
+    }
+  }
+}
