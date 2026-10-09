@@ -451,6 +451,7 @@ import { AppToolDrag, TOOL_DRAG_PREVIEW_OPACITY } from "./App.toolDrag";
 import { AppCursor } from "./App.cursor";
 import { AppDrawShape } from "./App.drawshape";
 import { AppFlowchart } from "./App.flowchart";
+import { FlowchartPlusButtons } from "./FlowchartPlusButtons";
 import { AppViewport, RIGHT_SIDEBAR_WIDTH } from "./App.viewport";
 import BraveMeasureTextError from "./BraveMeasureTextError";
 import { ContextMenu, CONTEXT_MENU_SEPARATOR } from "./ContextMenu";
@@ -2488,6 +2489,13 @@ class App extends React.Component<AppProps, AppState> {
                           </LayerUI>
 
                           <div className="excalidraw-textEditorContainer" />
+                          {this.isDefaultUIEnabled() &&
+                            this.isInteractionEnabled() && (
+                              <FlowchartPlusButtons
+                                app={this}
+                                selectedElements={selectedElements}
+                              />
+                            )}
                           <div className="excalidraw-contextMenuContainer" />
                           <div className="excalidraw-eye-dropper-container" />
                           <SVGLayer
