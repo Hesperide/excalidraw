@@ -189,7 +189,13 @@ window.addEventListener(
 
 let isSelfEmbedding = false;
 
-if (window.self !== window.top) {
+// Preview hosts can embed the editor in a same-origin iframe. Keep this
+// exception opt-in and development-only so production retains its guard.
+const allowDevelopmentEmbedding =
+  import.meta.env.DEV &&
+  import.meta.env.VITE_APP_ALLOW_SAME_ORIGIN_EMBEDDING === "true";
+
+if (window.self !== window.top && !allowDevelopmentEmbedding) {
   try {
     const parentUrl = new URL(document.referrer);
     const currentUrl = new URL(window.location.href);
