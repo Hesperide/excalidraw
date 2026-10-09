@@ -11,15 +11,17 @@ import type { MarkOptional, Merge } from "@excalidraw/common/utility-types";
 
 import { useTunnels } from "../context/tunnels";
 import { useUIAppState } from "../context/ui-appState";
+import { t } from "../i18n";
 
 import "../components/dropdownMenu/DropdownMenu.scss";
 
 import { useExcalidrawSetAppState } from "./App";
 import { LibraryMenu } from "./LibraryMenu";
+import { Templates } from "./Templates/Templates";
 import { SearchMenu } from "./SearchMenu";
 import { Sidebar } from "./Sidebar/Sidebar";
 import { withInternalFallback } from "./hoc/withInternalFallback";
-import { LibraryIcon, searchIcon } from "./icons";
+import { LibraryIcon, MagicIcon, searchIcon } from "./icons";
 
 import type { SidebarProps, SidebarTriggerProps } from "./Sidebar/common";
 
@@ -81,7 +83,10 @@ export const DefaultSidebar = Object.assign(
           {...rest}
           name="default"
           key="default"
-          className={clsx("default-sidebar", className)}
+          className={clsx("default-sidebar", className, {
+            "default-sidebar--templates":
+              appState.openSidebar?.tab === "templates",
+          })}
           docked={
             isForceDocked || (docked ?? appState.defaultSidebarDockedPreference)
           }
@@ -105,6 +110,13 @@ export const DefaultSidebar = Object.assign(
                 <Sidebar.TabTrigger tab={LIBRARY_SIDEBAR_TAB}>
                   {LibraryIcon}
                 </Sidebar.TabTrigger>
+                <Sidebar.TabTrigger
+                  tab="templates"
+                  aria-label={t("templates.tab")}
+                  title={t("templates.tab")}
+                >
+                  {MagicIcon}
+                </Sidebar.TabTrigger>
                 <DefaultSidebarTabTriggersTunnel.Out />
               </Sidebar.TabTriggers>
             </Sidebar.Header>
@@ -113,6 +125,9 @@ export const DefaultSidebar = Object.assign(
             </Sidebar.Tab>
             <Sidebar.Tab tab={CANVAS_SEARCH_TAB}>
               <SearchMenu />
+            </Sidebar.Tab>
+            <Sidebar.Tab tab="templates">
+              <Templates />
             </Sidebar.Tab>
             {children}
           </Sidebar.Tabs>

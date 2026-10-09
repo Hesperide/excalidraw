@@ -786,6 +786,19 @@ export type UIConfig = {
 };
 
 export interface ExcalidrawProps {
+  /**
+   * Generate an editable template draft. The host owns AI transport and credentials.
+   * No elements are inserted until the user explicitly accepts the preview.
+   */
+  onGenerateTemplate?: (request: {
+    prompt: string;
+    template?: string;
+    detail: "simple" | "balanced" | "detailed";
+    signal: AbortSignal;
+  }) => Promise<{
+    elements: readonly NonDeletedExcalidrawElement[];
+    files?: BinaryFiles;
+  }>;
   className?: string;
   /**
    * Document that owns Excalidraw's mounted DOM.
