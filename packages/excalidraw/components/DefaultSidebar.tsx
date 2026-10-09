@@ -21,7 +21,7 @@ import { Templates } from "./Templates/Templates";
 import { SearchMenu } from "./SearchMenu";
 import { Sidebar } from "./Sidebar/Sidebar";
 import { withInternalFallback } from "./hoc/withInternalFallback";
-import { LibraryIcon, searchIcon } from "./icons";
+import { LibraryIcon, MagicIcon, searchIcon } from "./icons";
 
 import type { SidebarProps, SidebarTriggerProps } from "./Sidebar/common";
 
@@ -112,9 +112,10 @@ export const DefaultSidebar = Object.assign(
                 </Sidebar.TabTrigger>
                 <Sidebar.TabTrigger
                   tab="templates"
-                  className="excalidraw-button sidebar-tab-trigger templates-tab"
+                  aria-label={t("templates.tab")}
+                  title={t("templates.tab")}
                 >
-                  {t("templates.tab")}
+                  {MagicIcon}
                 </Sidebar.TabTrigger>
                 <DefaultSidebarTabTriggersTunnel.Out />
               </Sidebar.TabTriggers>

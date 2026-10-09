@@ -61,6 +61,10 @@ describe("template library", () => {
 
   it("filters starter templates by category and search and clears empty results", async () => {
     await mount();
+    const tab = screen.getByRole("tab", { name: "Templates" });
+    expect(tab).toHaveAttribute("title", "Templates");
+    expect(tab.querySelector("svg")).toBeInTheDocument();
+    expect(tab).not.toHaveTextContent("Templates");
     expect(screen.getByText("6 templates")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Product" }));
     expect(screen.getByText("2 templates")).toBeInTheDocument();
