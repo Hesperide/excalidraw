@@ -37,12 +37,32 @@ describe("template library", () => {
     await act(() => h.app.library.resetLibrary());
   });
 
+  it("draws each starter connector all the way to its bound target", async () => {
+    await mount();
+    for (const template of getTemplates()) {
+      for (const arrow of template.elements) {
+        if (arrow.type !== "arrow") {
+          continue;
+        }
+        const target = template.elements.find(
+          (element) => element.id === arrow.endBinding?.elementId,
+        )!;
+        expect(target).toBeDefined();
+        const lastPoint = arrow.points[arrow.points.length - 1];
+        const x = arrow.x + lastPoint[0];
+        const y = arrow.y + lastPoint[1];
+        expect(x).toBeGreaterThanOrEqual(target.x - 20);
+        expect(x).toBeLessThanOrEqual(target.x + target.width + 20);
+        expect(y).toBeGreaterThanOrEqual(target.y - 20);
+        expect(y).toBeLessThanOrEqual(target.y + target.height + 20);
+      }
+    }
+  });
+
   it("filters starter templates by category and search and clears empty results", async () => {
     await mount();
     expect(screen.getByText("6 templates")).toBeInTheDocument();
-    fireEvent.click(
-      screen.getByRole("button", { name: "Product" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Product" }));
     expect(screen.getByText("2 templates")).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Search templates"), {
       target: { value: "missing" },
@@ -101,9 +121,7 @@ describe("template library", () => {
     fireEvent.change(screen.getByLabelText("Template name"), {
       target: { value: "Reusable onboarding" },
     });
-    fireEvent.click(
-      screen.getByRole("button", { name: "Save template" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Save template" }));
     await waitFor(async () => {
       const items = await h.app.library.getLatestLibrary();
       expect(items).toHaveLength(1);
@@ -144,9 +162,7 @@ describe("template library", () => {
     await mount({ onGenerateTemplate: generate });
     openCustom();
     enterPrompt();
-    fireEvent.click(
-      screen.getByRole("button", { name: "Detailed" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Detailed" }));
     fireEvent.click(screen.getByRole("button", { name: "Generate preview" }));
     await screen.findByText("AI draft · review before inserting");
     expect(generate).toHaveBeenCalledWith(
@@ -199,9 +215,7 @@ describe("template library", () => {
     expect(
       screen.getByRole("button", { name: "Building your draft…" }),
     ).toBeDisabled();
-    fireEvent.click(
-      screen.getByRole("button", { name: "Cancel" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(
       (generate.mock.calls[0] as unknown as [{ signal: AbortSignal }])[0].signal
         .aborted,

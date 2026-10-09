@@ -83,7 +83,10 @@ export const DefaultSidebar = Object.assign(
           {...rest}
           name="default"
           key="default"
-          className={clsx("default-sidebar", className)}
+          className={clsx("default-sidebar", className, {
+            "default-sidebar--templates":
+              appState.openSidebar?.tab === "templates",
+          })}
           docked={
             isForceDocked || (docked ?? appState.defaultSidebarDockedPreference)
           }

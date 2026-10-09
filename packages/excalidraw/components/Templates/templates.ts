@@ -1,4 +1,5 @@
 import { convertToExcalidrawElements } from "@excalidraw/element";
+import { pointFrom } from "@excalidraw/math";
 
 import type { ExcalidrawElementSkeleton } from "@excalidraw/element/transform";
 
@@ -129,6 +130,10 @@ export const getTemplates = () =>
   TEMPLATE_IDS.map((id) => {
     const definition = definitions[id];
     const labels = t(`templates.items.${id}.labels`).split("|");
+    const branchLabels =
+      id === "userFlow" || id === "decisionTree"
+        ? t(`templates.items.${id}.branches`).split("|")
+        : [];
     const skeletons: ExcalidrawElementSkeleton[] = definition.positions.map(
       ([x, y], index) => ({
         id: `${id}-${index}`,
@@ -137,7 +142,14 @@ export const getTemplates = () =>
         y,
         width: 180,
         height: 85,
-        backgroundColor: colors[index % colors.length],
+        backgroundColor:
+          colors[
+            id === "retrospective" || id === "projectKickoff"
+              ? [1, 2, 0][index % 3]
+              : id === "mindMap"
+              ? [1, 0, 2, 3, 0][index]
+              : index % colors.length
+          ],
         fillStyle: "solid",
         strokeColor: "#9280bd",
         strokeWidth: 1,
@@ -149,14 +161,28 @@ export const getTemplates = () =>
       }),
     );
     for (const [from, to] of definition.edges) {
+      const [fromX, fromY] = definition.positions[from];
+      const [toX, toY] = definition.positions[to];
+      const pointsRight = toX >= fromX;
+      const startX = fromX + (pointsRight ? 180 : 0);
+      const endX = toX + (pointsRight ? 0 : 180);
       skeletons.push({
         type: "arrow",
-        x: definition.positions[from][0] + 180,
-        y: definition.positions[from][1] + 42,
+        x: startX,
+        y: fromY + 42.5,
+        points: [pointFrom(0, 0), pointFrom(endX - startX, toY - fromY)],
         start: { id: `${id}-${from}` },
         end: { id: `${id}-${to}` },
         strokeColor: "#9280bd",
         strokeWidth: 1,
+        ...(from === 1 && branchLabels[to - 2]
+          ? {
+              label: {
+                text: branchLabels[to - 2],
+                fontSize: 14,
+              },
+            }
+          : {}),
       });
     }
     return {

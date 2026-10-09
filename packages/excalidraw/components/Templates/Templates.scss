@@ -289,6 +289,10 @@
     overflow: hidden;
   }
 
+  .default-sidebar--templates .sidebar-tabs-root {
+    min-height: 0;
+  }
+
   .default-sidebar .sidebar-triggers .templates-tab {
     display: inline-flex;
     gap: 0.35rem;

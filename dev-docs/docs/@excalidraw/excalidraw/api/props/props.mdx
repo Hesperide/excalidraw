@@ -9,6 +9,7 @@ All `props` are _optional_.
 | [`isCollaborating`](#iscollaborating) | `boolean` | \_ | This indicates if the app is in `collaboration` mode |
 | [`onChange`](#onchange) | `function` | \_ | This callback is triggered whenever the component updates due to any change. This callback will receive the excalidraw `elements` and the current `app state`. |
 | [`onPointerUpdate`](#onpointerupdate) | `function` | \_ | Callback triggered when mouse pointer is updated. |
+| [`onGenerateTemplate`](#ongeneratetemplate) | `function` | \_ | Generate editable template previews through your AI provider |
 | [`onPointerDown`](#onpointerdown) | `function` | \_ | This prop if passed gets triggered on pointer down events |
 | [`onScrollChange`](#onscrollchange) | `function` | \_ | This prop if passed gets triggered when scrolling the canvas. |
 | [`onPaste`](#onpaste) | `function` | \_ | Callback to be triggered if passed when something is pasted into the scene |
@@ -217,6 +218,28 @@ This prop indicates whether the shows the grid. When supplied, the value takes p
 ### libraryReturnUrl
 
 If supplied, this URL will be used when user tries to install a library from [libraries.excalidraw.com](https://libraries.excalidraw.com). Defaults to _window.location.origin + window.location.pathname_. To install the libraries in the same tab from which it was opened, you need to set `window.name` (to any alphanumeric string) — if it's not set it will open in a new tab.
+
+### onGenerateTemplate
+
+Optional host callback for the default sidebar's **Templates** tab:
+
+```tsx
+onGenerateTemplate?: (request: {
+  prompt: string;
+  template?: string;
+  detail: "simple" | "balanced" | "detailed";
+  signal: AbortSignal;
+}) => Promise<{
+  elements: readonly NonDeletedExcalidrawElement[];
+  files?: BinaryFiles;
+}>;
+```
+
+The host is responsible for its AI service, credentials, authentication, rate limits, and converting the response into Excalidraw elements. `template` is the selected starter's localized title, when present. Forward `signal` to your network request so navigating away or cancelling stops the work.
+
+The returned elements are shown in a preview. They are **not inserted into the scene** until the user chooses **Insert into canvas**. Reject the promise to show a retryable error. Empty results are treated as errors; cancelled or stale results are ignored.
+
+Without this callback, starter templates can still be previewed, inserted, and saved; AI generation shows an unavailable message. Set `aiEnabled={false}` to hide the AI controls. Template saves use the existing library mechanism and `onLibraryChange` rather than introducing separate persistence. As with other library items, templates containing images or embedded content cannot be saved to the library.
 
 ### theme
 

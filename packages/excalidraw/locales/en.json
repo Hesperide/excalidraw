@@ -43,12 +43,12 @@
     "clearFilters": "Clear filters",
     "categories": { "all": "All", "product": "Product", "planning": "Planning", "workshops": "Workshops" },
     "items": {
-      "userFlow": { "title": "User flow", "subtitle": "Map a path from A to B", "labels": "Sign up|First project|Invite team|Explore solo" },
+      "userFlow": { "title": "User flow", "subtitle": "Map a path from A to B", "labels": "Sign up|First project|Invite team|Explore solo", "branches": "Together|On my own" },
       "mindMap": { "title": "Mind map", "subtitle": "Make room for every idea", "labels": "Big idea|Audience|Channels|Story|Next steps" },
       "retrospective": { "title": "Sprint retrospective", "subtitle": "Reflect, learn, improve", "labels": "What worked|What didn't|Try next|Team syncs|Too many calls|Focus time|Early feedback|Late reviews|Ship smaller" },
       "customerJourney": { "title": "Customer journey", "subtitle": "See the whole experience", "labels": "Discover|Explore|Try|Return|What do I need?|Compare options|First success|Build a habit" },
       "projectKickoff": { "title": "Project kickoff", "subtitle": "Get everyone aligned", "labels": "Our goal|Team & roles|Next steps|Define success|Agree ownership|Set milestones" },
-      "decisionTree": { "title": "Decision tree", "subtitle": "Find your next step", "labels": "The decision|Ready to move?|Take action|Gather evidence" }
+      "decisionTree": { "title": "Decision tree", "subtitle": "Find your next step", "labels": "The decision|Ready to move?|Take action|Gather evidence", "branches": "Yes|Not yet" }
     }
   },
   "labels": {
