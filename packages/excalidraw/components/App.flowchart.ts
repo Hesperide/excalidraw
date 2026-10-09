@@ -50,6 +50,36 @@ export class AppFlowchart {
     this.navigator.clear();
   };
 
+  /** Commit a single successor using the same engine as keyboard creation. */
+  createNode = (direction: LinkDirection) => {
+    const { app } = this;
+    const selected = getSelectedElements(
+      app.scene.getNonDeletedElementsMap(),
+      app.state,
+    );
+    const node = selected[0];
+    if (
+      selected.length !== 1 ||
+      !node ||
+      node.locked ||
+      (node.type !== "rectangle" && node.type !== "diamond") ||
+      app.state.viewModeEnabled
+    ) {
+      return;
+    }
+
+    this.clear();
+    this.creator.createNodes(node, app.state, direction, app.scene);
+    const nodes = this.creator.pendingNodes ?? [];
+    this.creator.clear();
+    if (nodes.length) {
+      app.insertNewElements(nodes);
+      this.selectAndReveal(nodes[0]);
+      this.captureUpdate();
+      app.focusContainer();
+    }
+  };
+
   handleKeyEvent = (event: React.KeyboardEvent | KeyboardEvent): boolean => {
     const operation = this.resolveKeyboardEventToOperation(event);
 
