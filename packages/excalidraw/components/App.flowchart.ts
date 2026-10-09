@@ -50,6 +50,33 @@ export class AppFlowchart {
     this.navigator.clear();
   };
 
+  /** Commit one contextual step using the same placement/binding/history path. */
+  addStep = (direction: LinkDirection) => {
+    const selected = getSelectedElements(
+      this.app.scene.getNonDeletedElementsMap(),
+      this.app.state,
+    );
+    const node = selected[0];
+    if (
+      selected.length !== 1 ||
+      !node ||
+      node.locked ||
+      (node.type !== "rectangle" && node.type !== "diamond") ||
+      this.app.state.viewModeEnabled ||
+      this.isCreatingChart
+    ) {
+      return;
+    }
+    this.creator.createNodes(node, this.app.state, direction, this.app.scene);
+    const nodes = this.creator.pendingNodes ?? [];
+    this.creator.clear();
+    if (nodes.length) {
+      this.app.insertNewElements(nodes);
+      this.selectAndReveal(nodes[0]);
+      this.captureUpdate();
+    }
+  };
+
   handleKeyEvent = (event: React.KeyboardEvent | KeyboardEvent): boolean => {
     const operation = this.resolveKeyboardEventToOperation(event);
 
