@@ -8,15 +8,26 @@ import checker from "vite-plugin-checker";
 import { createHtmlPlugin } from "vite-plugin-html";
 import Sitemap from "vite-plugin-sitemap";
 import { woff2BrowserPlugin } from "../scripts/woff2/woff2-vite-plugins";
-export default defineConfig(({ mode }) => {
+import { devAIProxy } from "./dev/ai-proxy";
+export default defineConfig(({ mode, command }) => {
   // To load .env variables
   const envVars = loadEnv(mode, `../`);
   // https://vitejs.dev/config/
   return {
+    // Keep custom backends and production builds unchanged. The default local
+    // service must be reached through Vite, not through the viewer's localhost.
+    define:
+      command === "serve" &&
+      envVars.VITE_APP_AI_BACKEND === "http://localhost:3016"
+        ? { "import.meta.env.VITE_APP_AI_BACKEND": JSON.stringify("/api/ai") }
+        : undefined,
     server: {
       port: Number(envVars.VITE_APP_PORT || 3000),
       // open the browser
       open: true,
+      proxy: {
+        "^/api/ai(?:/|$)": devAIProxy,
+      },
     },
     // We need to specify the envDir since now there are no
     //more located in parallel with the vite.config.ts file but in parent dir
