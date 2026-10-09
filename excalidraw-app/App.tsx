@@ -142,6 +142,7 @@ import DebugCanvas, {
 } from "./components/DebugCanvas";
 import { useSimulatedCollaborators } from "./debugCollaborators";
 import { AIComponents } from "./components/AI";
+import { generateTemplate } from "./components/generateTemplate";
 import { ExcalidrawPlusIframeExport } from "./ExcalidrawPlusIframeExport";
 
 import "./index.scss";
@@ -952,6 +953,9 @@ const ExcalidrawWrapper = () => {
       })}
     >
       <Excalidraw
+        onGenerateTemplate={
+          import.meta.env.VITE_APP_AI_BACKEND ? generateTemplate : undefined
+        }
         viewportStatusFrame={viewportStatusFrame}
         userToFollow={userToFollow}
         onChange={onChange}
