@@ -7,12 +7,17 @@ import {
   FlowChartNavigator,
   getSelectedElements,
   isFlowchartNodeElement,
+  createDraggedFlowchartNode,
+  bindBindingElement,
+  isArrowElement,
   type LinkDirection,
 } from "@excalidraw/element";
 
 import type {
   ExcalidrawElement,
   NonDeletedExcalidrawElement,
+  ExcalidrawFlowchartNodeElement,
+  NonDeleted,
 } from "@excalidraw/element/types";
 
 import type React from "react";
@@ -33,11 +38,12 @@ type FlowchartOperation =
 export class AppFlowchart {
   private creator = new FlowChartCreator();
   private navigator = new FlowChartNavigator();
+  private dragNodes: PendingExcalidrawElements | null = null;
 
   constructor(private app: App) {}
 
   get pendingNodes() {
-    return this.creator.pendingNodes;
+    return this.dragNodes ?? this.creator.pendingNodes;
   }
 
   get isCreatingChart() {
@@ -46,8 +52,48 @@ export class AppFlowchart {
 
   /** ends any in-progress flowchart creation/navigation session */
   clear = () => {
+    this.dragNodes = null;
     this.creator.clear();
     this.navigator.clear();
+  };
+
+  previewDrag = (
+    source: NonDeleted<ExcalidrawFlowchartNodeElement>,
+    direction: LinkDirection,
+    position: { x: number; y: number },
+  ) => {
+    this.dragNodes = createDraggedFlowchartNode(
+      source,
+      this.app.state,
+      direction,
+      this.app.scene,
+      position,
+    );
+    this.app.triggerRender(true);
+  };
+
+  cancelDrag = () => {
+    this.dragNodes = null;
+    this.app.triggerRender(true);
+  };
+
+  commitDrag = (sourceId: string) => {
+    const nodes = this.dragNodes;
+    const source = this.app.scene.getNonDeletedElement(sourceId);
+    this.dragNodes = null;
+    if (!nodes || !source || !isFlowchartNodeElement(source)) {
+      this.app.triggerRender(true);
+      return;
+    }
+    const arrow = nodes[1];
+    if (!isArrowElement(arrow)) {
+      return;
+    }
+    bindBindingElement(arrow, source, "orbit", "start", this.app.scene);
+    this.app.insertNewElements(nodes);
+    this.selectAndReveal(nodes[0]);
+    this.captureUpdate();
+    this.app.focusContainer();
   };
 
   handleKeyEvent = (event: React.KeyboardEvent | KeyboardEvent): boolean => {

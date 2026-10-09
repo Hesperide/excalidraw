@@ -441,6 +441,29 @@ const createBindingArrow = (
   };
 };
 
+/**
+ * Free-position counterpart to keyboard cluster placement. Binding mutates its
+ * endpoints, so preview against a copy of the source, never the live scene node.
+ */
+export const createDraggedFlowchartNode = (
+  source: NonDeleted<ExcalidrawFlowchartNodeElement>,
+  appState: AppState,
+  direction: LinkDirection,
+  scene: Scene,
+  position: { x: number; y: number },
+): PendingExcalidrawElements => {
+  const next = cloneFlowchartNode(source, position.x, position.y);
+  const previewSource = { ...source };
+  const arrow = createBindingArrow(
+    previewSource,
+    next,
+    direction,
+    appState,
+    scene,
+  );
+  return [next, arrow];
+};
+
 export class FlowChartNavigator {
   isExploring: boolean = false;
   // nodes that are ONE link away (successor and predecessor both included)
