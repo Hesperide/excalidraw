@@ -1,4 +1,5 @@
 import { KEYS, reseed } from "@excalidraw/common";
+import { fireEvent, screen } from "@testing-library/react";
 
 import { Excalidraw } from "@excalidraw/excalidraw";
 
@@ -43,6 +44,64 @@ describe("flow chart creation", () => {
 
     API.setElements([rectangle]);
     API.setSelectedElements([rectangle]);
+  });
+
+  it("adds repeated contextual steps with inherited styles and bound arrows", () => {
+    const original = h.elements[0];
+    fireEvent.click(screen.getByRole("button", { name: /Add step$/ }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Add step to the right" }),
+    );
+    expect(h.elements).toHaveLength(3);
+    const next = h.elements.find(
+      (element) => element.type === "rectangle" && element.id !== original.id,
+    )!;
+    expect(next.strokeColor).toBe(original.strokeColor);
+    expect(h.state.selectedElementIds[next.id]).toBe(true);
+    const arrow = h.elements.find((element) => element.type === "arrow")!;
+    expect(arrow.type === "arrow" && arrow.startBinding?.elementId).toBe(
+      original.id,
+    );
+    expect(arrow.type === "arrow" && arrow.endBinding?.elementId).toBe(next.id);
+    fireEvent.click(screen.getByRole("button", { name: "Add step below" }));
+    expect(h.elements).toHaveLength(5);
+    expect(
+      screen.getByRole("group", { name: "Choose a direction" }),
+    ).toBeTruthy();
+  });
+
+  it("supports directional focus and Escape without changing the canvas", () => {
+    fireEvent.click(screen.getByRole("button", { name: /Add step$/ }));
+    const right = screen.getByRole("button", { name: "Add step to the right" });
+    expect(document.activeElement).toBe(right);
+    fireEvent.keyDown(right, { key: "ArrowUp" });
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Add step above" }),
+    );
+    fireEvent.keyDown(document.activeElement!, { key: "Escape" });
+    expect(
+      screen.queryByRole("group", { name: "Choose a direction" }),
+    ).toBeNull();
+    expect(h.elements).toHaveLength(1);
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: /Add step$/ }),
+    );
+  });
+
+  it("hides contextual controls for unsupported, locked, and multiple selections", () => {
+    for (const type of ["ellipse", "diamond", "rectangle"] as const) {
+      const element = API.createElement({ type, locked: type !== "ellipse" });
+      API.setElements([element]);
+      API.setSelectedElements([element]);
+      expect(screen.queryByRole("button", { name: /Add step$/ })).toBeNull();
+    }
+    const nodes = [
+      API.createElement({ type: "rectangle" }),
+      API.createElement({ type: "diamond" }),
+    ];
+    API.setElements(nodes);
+    API.setSelectedElements(nodes);
+    expect(screen.queryByRole("button", { name: /Add step$/ })).toBeNull();
   });
 
   // multiple at once

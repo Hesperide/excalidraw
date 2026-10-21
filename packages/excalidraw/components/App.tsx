@@ -451,6 +451,7 @@ import { AppToolDrag, TOOL_DRAG_PREVIEW_OPACITY } from "./App.toolDrag";
 import { AppCursor } from "./App.cursor";
 import { AppDrawShape } from "./App.drawshape";
 import { AppFlowchart } from "./App.flowchart";
+import { FlowchartAddStep } from "./FlowchartAddStep";
 import { AppViewport, RIGHT_SIDEBAR_WIDTH } from "./App.viewport";
 import BraveMeasureTextError from "./BraveMeasureTextError";
 import { ContextMenu, CONTEXT_MENU_SEPARATOR } from "./ContextMenu";
@@ -2486,6 +2487,10 @@ class App extends React.Component<AppProps, AppState> {
                           >
                             {this.props.children}
                           </LayerUI>
+                          {this.isDefaultUIEnabled() &&
+                            this.isInteractionEnabled() && (
+                              <FlowchartAddStep app={this} />
+                            )}
 
                           <div className="excalidraw-textEditorContainer" />
                           <div className="excalidraw-contextMenuContainer" />
