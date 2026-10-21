@@ -276,6 +276,7 @@ export const addNewNodes = (
   scene: Scene,
   numberOfNodes: number,
   stickyCrossStart: number | null = null,
+  position?: { x: number; y: number },
 ) => {
   const elementsMap = scene.getNonDeletedElementsMap();
   const obstacles = getConnectedFlowchartNodes(startNode, elementsMap).map(
@@ -291,8 +292,12 @@ export const addNewNodes = (
   );
 
   const nodes: NonDeletedExcalidrawElement[] = [];
-  for (const position of positions) {
-    const nextNode = cloneFlowchartNode(startNode, position.x, position.y);
+  for (const nodePosition of positions) {
+    const nextNode = cloneFlowchartNode(
+      startNode,
+      (position ?? nodePosition).x,
+      (position ?? nodePosition).y,
+    );
     const bindingArrow = createBindingArrow(
       startNode,
       nextNode,

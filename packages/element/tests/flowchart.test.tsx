@@ -7,6 +7,9 @@ import { UI, Keyboard, Pointer } from "@excalidraw/excalidraw/tests/helpers/ui";
 import {
   render,
   unmountComponent,
+  fireEvent,
+  screen,
+  act,
 } from "@excalidraw/excalidraw/tests/test-utils";
 
 import type { NonDeletedExcalidrawElement } from "@excalidraw/element/types";
@@ -30,6 +33,140 @@ beforeEach(async () => {
   UI.clickTool("arrow");
   UI.clickByTitle("Architect");
   UI.clickTool("selection");
+});
+
+describe("flow chart drag handles", () => {
+  beforeEach(() => {
+    const source = API.createElement({
+      type: "rectangle",
+      x: 300,
+      y: 300,
+      width: 200,
+      height: 100,
+      strokeColor: "#e03131",
+    });
+    API.setElements([source]);
+    API.setSelectedElements([source]);
+  });
+
+  const startDrag = () => {
+    fireEvent.pointerDown(screen.getByLabelText("Drag to connect right"), {
+      button: 0,
+      pointerId: 1,
+      clientX: 524,
+      clientY: 350,
+    });
+    fireEvent.pointerMove(document, {
+      pointerId: 1,
+      clientX: 750,
+      clientY: 450,
+    });
+  };
+
+  it("previews without changing the scene or source bindings, then cancels", () => {
+    const original = JSON.stringify(h.elements);
+    startDrag();
+    expect(h.app.flowchart.pendingNodes).toHaveLength(2);
+    expect(JSON.stringify(h.elements)).toBe(original);
+    Keyboard.withModifierKeys({ ctrl: true }, () => {
+      Keyboard.keyPress(KEYS.ARROW_DOWN);
+    });
+    Keyboard.keyUp(KEYS.CTRL_OR_CMD);
+    expect(JSON.stringify(h.elements)).toBe(original);
+    fireEvent.keyDown(document, { key: KEYS.ESCAPE });
+    fireEvent.pointerUp(document, { pointerId: 1, clientX: 750, clientY: 450 });
+    expect(h.app.flowchart.pendingNodes).toBeNull();
+    expect(JSON.stringify(h.elements)).toBe(original);
+  });
+
+  it("commits one styled node and a bound elbow arrow at the drop position", () => {
+    startDrag();
+    fireEvent.pointerUp(document, { pointerId: 1, clientX: 750, clientY: 450 });
+    expect(h.elements).toHaveLength(3);
+    const [source, node, arrow] = h.elements;
+    expect(node.type).toBe("rectangle");
+    expect(node.strokeColor).toBe(source.strokeColor);
+    expect(node.x).toBe(650);
+    expect(node.y).toBe(400);
+    expect(arrow.type).toBe("arrow");
+    if (arrow.type === "arrow") {
+      expect(arrow).toMatchObject({ elbowed: true });
+      expect(arrow.startBinding?.elementId).toBe(source.id);
+      expect(arrow.endBinding?.elementId).toBe(node.id);
+    }
+    expect(h.state.selectedElementIds[node.id]).toBe(true);
+  });
+
+  it("does not create on a click, pointer cancellation, blur, or outside drop", () => {
+    fireEvent.pointerDown(screen.getByLabelText("Drag to connect right"), {
+      button: 0,
+      pointerId: 1,
+    });
+    fireEvent.pointerUp(document, { pointerId: 1 });
+    expect(h.elements).toHaveLength(1);
+    startDrag();
+    fireEvent.pointerCancel(document, { pointerId: 1 });
+    expect(h.elements).toHaveLength(1);
+    expect(h.app.flowchart.pendingNodes).toBeNull();
+    startDrag();
+    fireEvent.blur(window);
+    expect(h.app.flowchart.pendingNodes).toBeNull();
+    startDrag();
+    fireEvent.pointerUp(document, {
+      pointerId: 1,
+      clientX: -100,
+      clientY: -100,
+    });
+    expect(h.elements).toHaveLength(1);
+  });
+
+  it.each(["up", "right", "down", "left"])(
+    "creates a connected diamond from the %s handle",
+    (direction) => {
+      const diamond = API.createElement({
+        type: "diamond",
+        x: 300,
+        y: 300,
+        width: 160,
+        height: 100,
+      });
+      API.setElements([diamond]);
+      API.setSelectedElements([diamond]);
+      fireEvent.pointerDown(
+        screen.getByLabelText(`Drag to connect ${direction}`),
+        { button: 0, pointerId: 1, clientX: 400, clientY: 350 },
+      );
+      fireEvent.pointerMove(document, {
+        pointerId: 1,
+        clientX: 700,
+        clientY: 600,
+      });
+      expect(h.app.flowchart.pendingNodes?.[0].type).toBe("diamond");
+      fireEvent.pointerUp(document, {
+        pointerId: 1,
+        clientX: 700,
+        clientY: 600,
+      });
+      expect(h.elements.map((element) => element.type)).toEqual([
+        "diamond",
+        "diamond",
+        "arrow",
+      ]);
+    },
+  );
+
+  it("hides handles for ineligible or multiple selections and view mode", () => {
+    const ellipse = API.createElement({ type: "ellipse" });
+    API.setElements([...h.elements, ellipse]);
+    API.setSelectedElements([ellipse]);
+    expect(screen.queryByLabelText("Drag to connect right")).toBeNull();
+    API.setSelectedElements([...h.app.scene.getNonDeletedElements()]);
+    expect(screen.queryByLabelText("Drag to connect right")).toBeNull();
+    API.setSelectedElements([h.app.scene.getNonDeletedElements()[0]]);
+    expect(screen.getByLabelText("Drag to connect right")).toBeTruthy();
+    act(() => h.app.setState({ viewModeEnabled: true }));
+    expect(screen.queryByLabelText("Drag to connect right")).toBeNull();
+  });
 });
 
 describe("flow chart creation", () => {
