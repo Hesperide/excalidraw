@@ -1,0 +1,34 @@
+.excalidraw .flowchart-drag-handles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: var(--zIndex-canvasButtons);
+
+  button {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    width: 24px;
+    height: 24px;
+    border: 1px solid var(--color-primary);
+    border-radius: 50%;
+    background: var(--island-bg-color);
+    color: var(--color-primary);
+    pointer-events: auto;
+    touch-action: none;
+    cursor: grab;
+    font-size: 17px;
+    line-height: 20px;
+    padding: 0;
+
+    &:hover,
+    &:focus-visible {
+      background: var(--color-primary-light);
+      outline: 2px solid var(--color-primary);
+      outline-offset: 2px;
+    }
+
+    &:active {
+      cursor: grabbing;
+    }
+  }
+}
