@@ -7,6 +7,8 @@ import { UI, Keyboard, Pointer } from "@excalidraw/excalidraw/tests/helpers/ui";
 import {
   render,
   unmountComponent,
+  fireEvent,
+  screen,
 } from "@excalidraw/excalidraw/tests/test-utils";
 
 import type { NonDeletedExcalidrawElement } from "@excalidraw/element/types";
@@ -43,6 +45,117 @@ describe("flow chart creation", () => {
 
     API.setElements([rectangle]);
     API.setSelectedElements([rectangle]);
+  });
+
+  describe("directional plus controls", () => {
+    it.each(["up", "right", "down", "left"])(
+      "creates and binds a node %s, selecting it for the next extension",
+      (direction) => {
+        const original = h.elements[0];
+        fireEvent.click(
+          screen.getByRole("button", {
+            name: `Add connected shape ${direction}`,
+          }),
+        );
+        expect(h.elements).toHaveLength(3);
+        const child = h.elements.find(
+          (el) => el.type === "rectangle" && el.id !== original.id,
+        )!;
+        const arrow = h.elements.find((el) => el.type === "arrow")!;
+        expect(arrow.type === "arrow" && arrow.startBinding?.elementId).toBe(
+          original.id,
+        );
+        expect(arrow.type === "arrow" && arrow.endBinding?.elementId).toBe(
+          child.id,
+        );
+        expect(h.state.selectedElementIds[child.id]).toBe(true);
+        if (direction === "right") {
+          expect(child.x).toBeGreaterThan(original.x + original.width);
+        } else if (direction === "left") {
+          expect(child.x + child.width).toBeLessThan(original.x);
+        } else if (direction === "up") {
+          expect(child.y + child.height).toBeLessThan(original.y);
+        } else {
+          expect(child.y).toBeGreaterThan(original.y + original.height);
+        }
+      },
+    );
+
+    it("supports repeated extension and undoes one connected pair at a time", () => {
+      const add = () =>
+        fireEvent.click(
+          screen.getByRole("button", { name: "Add connected shape right" }),
+        );
+      add();
+      add();
+      expect(h.elements).toHaveLength(5);
+      Keyboard.withModifierKeys({ ctrl: true }, () =>
+        Keyboard.keyPress(KEYS.Z),
+      );
+      expect(h.elements.filter((el) => !el.isDeleted)).toHaveLength(3);
+    });
+
+    it("does not let focused button activation start canvas text editing", () => {
+      const button = screen.getByRole("button", {
+        name: "Add connected shape right",
+      });
+      fireEvent.keyDown(button, { key: "Enter" });
+      expect(h.state.editingTextElement).toBeNull();
+      fireEvent.click(button);
+      expect(h.elements).toHaveLength(3);
+      Keyboard.keyPress(KEYS.ENTER);
+      expect(h.state.editingTextElement).not.toBeNull();
+      expect(
+        screen.queryByRole("group", { name: "Extend flowchart" }),
+      ).toBeNull();
+    });
+
+    it("inherits diamond shape and styling", () => {
+      const diamond = API.createElement({
+        type: "diamond",
+        width: 160,
+        height: 120,
+        backgroundColor: "#a5d8ff",
+        strokeColor: "#1971c2",
+      });
+      API.setElements([diamond]);
+      API.setSelectedElements([diamond]);
+      fireEvent.click(
+        screen.getByRole("button", { name: "Add connected shape down" }),
+      );
+      const child = h.elements.find(
+        (el) => el.type === "diamond" && el.id !== diamond.id,
+      )!;
+      expect(child.backgroundColor).toBe(diamond.backgroundColor);
+      expect(child.strokeColor).toBe(diamond.strokeColor);
+    });
+
+    it("hides controls for ineligible, locked, multiple and view-mode selections", () => {
+      const ellipse = API.createElement({ type: "ellipse" });
+      API.setElements([ellipse]);
+      API.setSelectedElements([ellipse]);
+      expect(
+        screen.queryByRole("group", { name: "Extend flowchart" }),
+      ).toBeNull();
+      const locked = API.createElement({ type: "rectangle", locked: true });
+      API.setElements([locked]);
+      API.setSelectedElements([locked]);
+      expect(
+        screen.queryByRole("group", { name: "Extend flowchart" }),
+      ).toBeNull();
+      const a = API.createElement({ type: "rectangle" });
+      const b = API.createElement({ type: "diamond" });
+      API.setElements([a, b]);
+      API.setSelectedElements([a, b]);
+      expect(
+        screen.queryByRole("group", { name: "Extend flowchart" }),
+      ).toBeNull();
+      API.setSelectedElements([a]);
+      API.setAppState({ viewModeEnabled: true });
+      expect(
+        screen.queryByRole("group", { name: "Extend flowchart" }),
+      ).toBeNull();
+    });
   });
 
   // multiple at once
