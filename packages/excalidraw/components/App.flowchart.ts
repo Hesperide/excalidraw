@@ -50,6 +50,38 @@ export class AppFlowchart {
     this.navigator.clear();
   };
 
+  /** Pointer counterpart of Ctrl/Cmd+arrow, using the same layout and history. */
+  createNode = (direction: LinkDirection) => {
+    const { app, creator } = this;
+    const selected = app.scene.getSelectedElements(app.state);
+    const node = selected[0];
+    if (
+      selected.length !== 1 ||
+      !node ||
+      node.locked ||
+      (node.type !== "rectangle" && node.type !== "diamond") ||
+      !app.isInteractionEnabled() ||
+      app.state.viewModeEnabled ||
+      app.state.editingTextElement ||
+      creator.isCreatingChart
+    ) {
+      return;
+    }
+
+    this.clear();
+    creator.createNodes(node, app.state, direction, app.scene);
+    const nodes = creator.pendingNodes ?? [];
+    creator.clear();
+    if (!nodes.length) {
+      return;
+    }
+    app.insertNewElements(nodes);
+    this.selectAndReveal(nodes[0]);
+    this.captureUpdate();
+    // Enter/double-click can edit the new node; arrows can extend it again.
+    app.focusContainer();
+  };
+
   handleKeyEvent = (event: React.KeyboardEvent | KeyboardEvent): boolean => {
     const operation = this.resolveKeyboardEventToOperation(event);
 

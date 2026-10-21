@@ -1,5 +1,13 @@
 {
   "labels": {
+    "flowchart": {
+      "extend": "Extend flowchart",
+      "up": "Add connected shape up",
+      "right": "Add connected shape right",
+      "down": "Add connected shape down",
+      "left": "Add connected shape left",
+      "editLabel": "Enter to edit label"
+    },
     "signUp": "Sign up",
     "signIn": "Sign in",
     "paste": "Paste",
