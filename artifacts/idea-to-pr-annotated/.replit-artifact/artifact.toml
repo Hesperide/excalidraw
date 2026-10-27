@@ -1,0 +1,29 @@
+kind = "video"
+videoAspectRatio = "16:9"
+previewPath = "/"
+title = "Idea to PR (Annotated)"
+description = "An annotated walkthrough of a raw screen recording, styled after the idea-to-PR animation: dimmed screen with orange highlight callouts and a four-step progress bar (get context from the codebase, ask for a change in plain language, test your change in the cloud, high-quality pull request with video)."
+version = "1.0.0"
+id = "artifacts/idea-to-pr-annotated"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22441
+
+[services.development]
+run = "pnpm --filter @workspace/idea-to-pr-annotated run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/idea-to-pr-annotated", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/idea-to-pr-annotated/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22441"
+BASE_PATH = "/"

@@ -1,0 +1,9 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "3BuQNL_oqMl9ed2CH5P9F"
+uri = "file://artifacts/idea-to-pr-annotated/public/audio/bg_music.mp3"
+type = "audio"
+title = "background music"
+description = "Generated music: Calm modern ambient electronic instrumental for a software product walkthrough. Soft pulsing synths, light percussion, 100 BPM, focused and optimistic, gentle lifts around 6.5, 11.5 …"
