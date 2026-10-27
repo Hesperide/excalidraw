@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { VideoCanvas, type VideoAspectRatio, useVideoPlayer, VideoPausedContext } from '@/lib/video';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { VideoCanvas, type VideoAspectRatio, useVideoPlayer, VideoPausedContext, useSceneTimer } from '@/lib/video';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const SCENE_DURATIONS = { context: 6500, ask: 5000, test: 8000, pr: 8600 };
@@ -32,7 +32,6 @@ export default function VideoTemplate({ durations = SCENE_DURATIONS, loop = true
   const vRef = useRef<HTMLVideoElement | null>(null);
   const aRef = useRef<HTMLAudioElement | null>(null);
   const last = useRef<string | null>(null);
-  const [t, setT] = useState(0);
 
   useEffect(() => {
     const v = vRef.current, a = aRef.current;
@@ -46,36 +45,13 @@ export default function VideoTemplate({ durations = SCENE_DURATIONS, loop = true
     v?.play().catch(() => {}); a?.play().catch(() => {});
   }, [currentSceneKey, base, paused, muted]);
 
-  useEffect(() => {
-    let id = 0;
-    const tick = () => { if (vRef.current) setT(vRef.current.currentTime); id = requestAnimationFrame(tick); };
-    id = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(id);
-  }, []);
-
-  const box = BOXES.find((b) => t >= b[0] && t < b[1]);
-  const bi = box ? BOXES.indexOf(box) : -1;
-
   return (
     <VideoPausedContext.Provider value={paused}>
       <VideoCanvas aspectRatio={VIDEO_ASPECT_RATIO} style={{ backgroundColor: '#f4f2ee', fontFamily: 'Geist, sans-serif' }}>
         <div className="absolute inset-0 flex items-center" style={{ paddingLeft: '2.6%', paddingRight: '2.6%', gap: '2.6%' }}>
           <div className="relative overflow-hidden shrink-0" style={{ height: '86%', aspectRatio: '1920 / 1222', borderRadius: '1.1vmin', boxShadow: '0 2vmin 5vmin -2vmin rgba(40,30,20,.35), 0 0 0 1px rgba(40,30,20,.08)', background: '#1b1a22' }}>
             <video ref={vRef} src={`${import.meta.env.BASE_URL}raw.mp4`} muted playsInline autoPlay preload="auto" className="absolute inset-0 w-full h-full" style={{ objectFit: 'contain' }} />
-            <AnimatePresence>
-              {box && (
-                <motion.div key={bi} className="absolute"
-                  initial={{ opacity: 0, scale: 1.06 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
-                  transition={{ duration: 0.45, ease: [0.2, 0.8, 0.2, 1] }}
-                  style={{ left: `${box[3] * 100}%`, top: `${box[4] * 100}%`, width: `${box[5] * 100}%`, height: `${box[6] * 100}%`, borderRadius: '0.9vmin', boxShadow: '0 0 0 9999px rgba(28,24,30,.42)', outline: '0.32vmin solid #f2501d', outlineOffset: '0.2vmin' }}>
-                  <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 320, damping: 18, delay: 0.2 }}
-                    className="absolute flex items-center justify-center text-white font-semibold"
-                    style={{ left: '-1.7vmin', top: '-1.7vmin', width: '3.6vmin', height: '3.6vmin', borderRadius: '50%', background: '#f2501d', fontSize: '1.9vmin', boxShadow: '0 0 0 0.4vmin rgba(242,80,29,.25)' }}>
-                    {box[2] + 1}
-                  </motion.div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            <SceneBoxes key={currentSceneKey} sceneKey={base} />
           </div>
           <div className="flex flex-col flex-1 min-w-0" style={{ gap: '4.5vmin' }}>
             {STEPS.map((s, i) => (
@@ -90,5 +66,38 @@ export default function VideoTemplate({ durations = SCENE_DURATIONS, loop = true
         <audio ref={aRef} src={`${import.meta.env.BASE_URL}audio/bg_music.mp3`} preload="auto" autoPlay muted={muted} />
       </VideoCanvas>
     </VideoPausedContext.Provider>
+  );
+}
+
+function SceneBoxes({ sceneKey }: { sceneKey: string }) {
+  const start = SCENE_START_SEC[sceneKey] ?? 0;
+  const end = start + ((SCENE_DURATIONS as Record<string, number>)[sceneKey] ?? 0) / 1000;
+  const [bi, setBi] = useState(-1);
+  const events = useMemo(() => {
+    const ev: { time: number; callback: () => void }[] = [];
+    BOXES.forEach((b, i) => {
+      if (b[1] <= start || b[0] >= end) return;
+      ev.push({ time: Math.max(0, (b[0] - start) * 1000), callback: () => setBi(i) });
+      if (b[1] < end) ev.push({ time: (b[1] - start) * 1000, callback: () => setBi((c) => (c === i ? -1 : c)) });
+    });
+    return ev;
+  }, [start, end]);
+  useSceneTimer(events);
+  const box = bi >= 0 ? BOXES[bi] : null;
+  return (
+    <AnimatePresence>
+      {box && (
+        <motion.div key={bi} className="absolute"
+          initial={{ opacity: 0, scale: 1.06 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
+          transition={{ duration: 0.45, ease: [0.2, 0.8, 0.2, 1] }}
+          style={{ left: `${box[3] * 100}%`, top: `${box[4] * 100}%`, width: `${box[5] * 100}%`, height: `${box[6] * 100}%`, borderRadius: '0.9vmin', boxShadow: '0 0 0 9999px rgba(28,24,30,.42)', outline: '0.32vmin solid #f2501d', outlineOffset: '0.2vmin' }}>
+          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 320, damping: 18, delay: 0.2 }}
+            className="absolute flex items-center justify-center text-white font-semibold"
+            style={{ left: '-1.7vmin', top: '-1.7vmin', width: '3.6vmin', height: '3.6vmin', borderRadius: '50%', background: '#f2501d', fontSize: '1.9vmin', boxShadow: '0 0 0 0.4vmin rgba(242,80,29,.25)' }}>
+            {box[2] + 1}
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

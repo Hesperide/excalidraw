@@ -1,0 +1,1 @@
+- [Video export timing](video-export-timing.md): time overlays from the scene clock, not rAF + `<video>.currentTime`, or they vanish from exports.
