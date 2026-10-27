@@ -16,7 +16,7 @@ const STEPS = [
 ];
 // [start, end, step, x, y, w, h] in footage-normalized coords
 const BOXES: [number, number, number, number, number, number, number][] = [
-  [0.4, 6.3, 0, 0.044, 0.19, 0.33, 0.62],
+  [0.4, 3.7, 0, 0.15, 0.08, 0.216, 0.095],
   [6.6, 11.3, 1, 0.153, 0.365, 0.213, 0.28],
   [11.6, 19.3, 2, 0.374, 0.032, 0.448, 0.935],
   [19.6, 22.0, 3, 0.822, 0.37, 0.165, 0.11],

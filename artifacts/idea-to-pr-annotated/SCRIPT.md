@@ -3,7 +3,7 @@ Style matched to reference: raw footage framed as a rounded window, 4-step legen
 Footage plays continuously, uncropped (contain). Spotlight boxes are driven by video.currentTime.
 | Shot | Time | Step | Spotlight |
 |---|---|---|---|
-|1|0-6.5|1 Get context from the codebase|agent answer + precedent table|
+|1|0-6.5|1 Get context from the codebase|user question bubble at top (0.4-3.7, before chat scrolls)|
 |2|6.5-11.5|2 Ask for a change in plain language|user prompt bubble + attached images|
 |3|11.5-19.5|3 Test in the cloud|preview + Changes pane (11.6-19.3)|
 |4|19.5-28.1|4 PR with video|right sidebar PR card (19.6-22.0), fades before GitHub page|
