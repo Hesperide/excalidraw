@@ -1,4 +1,5 @@
 # Idea to PR — annotated (16:9, 28.1s)
+Layout (rev): footage left at 86% canvas height (~75% width), steps stacked vertically in a right column.
 Style matched to reference: raw footage framed as a rounded window, 4-step legend underneath (orange numbered dots, active step full ink, others faded), a spotlight dims the footage except the region being described, with an orange outlined box and numbered badge.
 Footage plays continuously, uncropped (contain). Spotlight boxes are driven by video.currentTime.
 | Shot | Time | Step | Spotlight |

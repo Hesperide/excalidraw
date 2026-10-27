@@ -59,8 +59,8 @@ export default function VideoTemplate({ durations = SCENE_DURATIONS, loop = true
   return (
     <VideoPausedContext.Provider value={paused}>
       <VideoCanvas aspectRatio={VIDEO_ASPECT_RATIO} style={{ backgroundColor: '#f4f2ee', fontFamily: 'Geist, sans-serif' }}>
-        <div className="absolute inset-0 flex flex-col items-center" style={{ paddingTop: '3.2%' }}>
-          <div className="relative overflow-hidden" style={{ height: '73%', aspectRatio: '1920 / 1222', borderRadius: '1.1vmin', boxShadow: '0 2vmin 5vmin -2vmin rgba(40,30,20,.35), 0 0 0 1px rgba(40,30,20,.08)', background: '#1b1a22' }}>
+        <div className="absolute inset-0 flex items-center" style={{ paddingLeft: '2.6%', paddingRight: '2.6%', gap: '2.6%' }}>
+          <div className="relative overflow-hidden shrink-0" style={{ height: '86%', aspectRatio: '1920 / 1222', borderRadius: '1.1vmin', boxShadow: '0 2vmin 5vmin -2vmin rgba(40,30,20,.35), 0 0 0 1px rgba(40,30,20,.08)', background: '#1b1a22' }}>
             <video ref={vRef} src={`${import.meta.env.BASE_URL}raw.mp4`} muted playsInline autoPlay preload="auto" className="absolute inset-0 w-full h-full" style={{ objectFit: 'contain' }} />
             <AnimatePresence>
               {box && (
@@ -77,7 +77,7 @@ export default function VideoTemplate({ durations = SCENE_DURATIONS, loop = true
               )}
             </AnimatePresence>
           </div>
-          <div className="grid grid-cols-4" style={{ width: '82%', marginTop: '3.4%', gap: '3vmin' }}>
+          <div className="flex flex-col flex-1 min-w-0" style={{ gap: '4.5vmin' }}>
             {STEPS.map((s, i) => (
               <motion.div key={i} animate={{ opacity: i === step ? 1 : 0.32, y: i === step ? 0 : 4 }} transition={{ duration: 0.4 }}>
                 <div className="flex items-center justify-center text-white font-semibold" style={{ width: '3vmin', height: '3vmin', borderRadius: '50%', background: '#f2501d', fontSize: '1.6vmin' }}>{i + 1}</div>
