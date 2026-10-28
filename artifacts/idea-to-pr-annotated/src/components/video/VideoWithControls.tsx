@@ -45,7 +45,8 @@ export default function VideoWithControls() {
   const [hovering, setHovering] = useState(false);
   const [tapPinned, setTapPinned] = useState(false);
   useEffect(() => { if (!(collapsed && tapPinned)) return; const h = (e: PointerEvent) => { if (e.pointerType === 'mouse') return; if (sensorRef.current && !sensorRef.current.contains(e.target as Node)) setTapPinned(false); }; document.addEventListener('pointerdown', h); return () => document.removeEventListener('pointerdown', h); }, [collapsed, tapPinned]);
-  if (!isIframed) return <VideoTemplate />;
+  const isBare = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('bare');
+  if (!isIframed || isBare) return <VideoTemplate />;
   const visible = !collapsed || hovering || tapPinned;
   const btn = 'w-14 h-14 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 transition-colors rounded-lg shrink-0';
   return (
